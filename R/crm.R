@@ -457,3 +457,4 @@ get_ag_biomass <- function(dbh, bole_ht, species, config, volume_coefficients,
     
     return(ag_biomass)
 }
+
