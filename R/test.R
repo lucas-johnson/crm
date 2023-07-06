@@ -10,26 +10,30 @@
 
 library(dplyr)
 library(ggplot2)
-source(here::here("R/crm_functions.R"))
 source(here::here("R/sample_residuals.R"))
 # x <- "~/Code/lib/cafri/data/allometrics/REF_SPECIES.csv"
 # download.file("https://apps.fs.usda.gov/fia/datamart/CSV/REF_SPECIES.csv", x)
 
-config <- read.csv("~/Code/lib/cafri/data/allometrics/NE_config_volcfgrs.csv")
-species_refs <- read.csv("~/Code/lib/cafri/data/allometrics/REF_SPECIES.csv")
-volume_coefs <- read.csv(path.expand("~/Code/lib/cafri/data/allometrics/NE_coefs_volcfgrs.csv"))
 fia_data <- read.csv("~/Documents/CAFRI/data/Inventory/FIA/NY/NYS_CSV_2019/NY_TREE.csv")
 
-set.seed(123)
-fia_sample <- fia_data[sample(1:nrow(fia_data), 1000),]
 
-fia_sample <- fia_sample |>
-    rowwise() |>
-    dplyr::mutate(is_dead = STATUSCD == 2) |>
-    dplyr::mutate(my_agb = get_ag_biomass(DIA, BOLEHT, SPCD, config, volume_coefs,
-                                          species_refs, cull = CULL,
-                                          dc = DECAYCD, is_dead = is_dead,
-                                          residual = TRUE)) |>
-    dplyr::ungroup() |>
+# LIVE example
+set.seed(123)
+live_sample <- fia_data |>
+    dplyr::filter(STATUSCD == 1) |>
+    dplyr::sample_n(1) |>
+    dplyr::mutate(my_agb = get_ag_biomass(dbh = DIA, boleht = BOLEHT, species = SPCD, cull = CULL,
+                                          is_dead = STATUSCD == 2, dc = DECAYCD,
+                                          residual = FALSE)) |>
+    dplyr::select(my_agb, DRYBIO_AG)
+
+# DEAD example
+dead_sample <- fia_data |>
+    dplyr::filter(STATUSCD == 2) |>
+    dplyr::sample_n(1) |>
+    dplyr::mutate(my_agb = get_ag_biomass(dbh = DIA, boleht = BOLEHT, species = SPCD,
+                                          cull = CULL,
+                                          dc = DECAYCD,
+                                          residual = FALSE)) |>
     dplyr::mutate(err = my_agb - DRYBIO_AG) |>
     dplyr::mutate(abs_err = abs(err))
