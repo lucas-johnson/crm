@@ -67,24 +67,3 @@ get_jenkins_03_residual <- function(agb,
         ) |> dplyr::pull(residual)
     agb + (relative_residual * agb)
 }
-
-sample_residuals <- function(data) {
-
-    if (data$needs_residuals) {
-        # 1 is smallest DBH on subplots
-        data$dbh <- max(c(data$dbh + get_dia_residual(), 1))
-        # 4 is shortest tree in DB
-        data$bole_ht <- max(c(data$bole_ht + get_ht_residual(), 4))
-        data$cull <- max(c(data$cull + get_cull_residual(), 0))
-        data$cull <- min(c(cull, 100))
-        data$spec_grav_wood <- data$spec_grav_wood + get_specific_grav_residual(data$spec_grav_wood)
-        data$spec_grav_bark <- data$spec_grav_bark + get_specific_grav_residual(data$spec_grav_bark)
-        if (data$is_dead) {
-            data$dc <- data$dc + get_decaycd_residual()
-            data$dc <- ifelse(data$dc < 1, 1, ifelse(data$dc > 5, 5, data$dc))
-            data$drf <- data$drf + get_drf_residual()
-        }
-        data$needs_residuals <- FALSE
-    }
-    return(data)
-}
