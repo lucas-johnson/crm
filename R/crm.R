@@ -1,9 +1,22 @@
+#'  Error message for crm_data type incompatibility
+#'
+#'  Produce a standardized error message for when a function only accepts an
+#'  object of type 'crm_data'.
+#'
+#' @return Character string error message
+#'
 get_crm_data_type_error <- function() {
+
     return(paste0(
         "Only accepts objects of class 'crm_data'. ",
         "Use prep_data() to build an object of class 'crm_data'."))
 }
 
+#' Handle data masked arguments (column names)
+#' @inheritParams prep_data
+#'
+#' @return a list of expressions to be used as column names
+#'
 ensym_cols <- function(grs_vol = NULL,
                        snd_vol = NULL,
                        jenkins_total_biomass = NULL,
@@ -21,8 +34,7 @@ ensym_cols <- function(grs_vol = NULL,
                        sl_top = NULL,
                        sl_bole = NULL,
                        sl_bark = NULL,
-                       sl_stump = NULL,
-                       w = NULL) {
+                       sl_stump = NULL) {
     args <- list()
     if (!missing(grs_vol)) {
         args <- append(args, rlang::ensyms(grs_vol = grs_vol))
@@ -75,12 +87,15 @@ ensym_cols <- function(grs_vol = NULL,
     if (!missing(sl_stump)) {
         args <- append(args, rlang::ensyms(sl_stump = sl_stump))
     }
-    if (!missing(w)) {
-        args <- append(args, rlang::ensyms(w = w))
-    }
     return(args)
 }
 
+#' Look up bark percent (of volume) for a given species
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float specific gravity
+#'
 get_bark_percent <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -91,6 +106,12 @@ get_bark_percent <- function(data) {
            data$bark_percent)
 }
 
+#' Look up wood specific gravity for a given species
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float specific gravity
+#'
 get_wood_spec_grav <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -102,7 +123,14 @@ get_wood_spec_grav <- function(data) {
 
 }
 
+#' Look up bark specific gravity for a given species
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float specific gravity
+#'
 get_bark_spec_grav <- function(data) {
+
     if (class(data) != 'crm_data') {
         stop("Only accepts objects of class 'crm_data'. Use prep_data() to build an object of class 'crm_data'. ")
     }
@@ -112,6 +140,12 @@ get_bark_spec_grav <- function(data) {
            data$bark_spec_grav)
 }
 
+#' Look up density reduction factor for a given decay code
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float density reduction factor
+#'
 get_density_reduction_factor <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -129,7 +163,15 @@ get_density_reduction_factor <- function(data) {
     return(drf)
 }
 
+#' Look up structural loss ratio for a given decay code and type
+#'
+#' @inheritParams get_ag_biomass
+#' @param type one of c('bole', 'bark', 'stump', 'top')
+#'
+#' @return Float structural loss ratio
+#'
 get_structural_loss <- function(data, type) {
+
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
     }
@@ -157,6 +199,14 @@ get_structural_loss <- function(data, type) {
     return(slr)
 }
 
+#' Deduct rotten/missing cull from input
+#'
+#' @param input floating point volume or biomass.
+#' @param percent_cull_rotten floating point percentage value representing
+#' percent of the tree that is rotten or missing.
+#'
+#' @return Floating point cull-adjusted value
+#'
 remove_cull <- function(input, percent_cull_rotten) {
 
     if (is.null(percent_cull_rotten) || is.na(percent_cull_rotten)) {
@@ -167,7 +217,15 @@ remove_cull <- function(input, percent_cull_rotten) {
     input * (1 - (percent_cull_rotten / 100))
 }
 
+#' Compute CRM adjustment factor
+#'
+#' Get component ratio adjustment factor to convert jenkins component estimates
+#' to CRM component estimates.
+#'
+#' @return Float adjustment factor
+#'
 get_crm_adjustment <- function(data) {
+
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
     }
@@ -180,11 +238,28 @@ get_crm_adjustment <- function(data) {
     return(crm_adj_factor)
 }
 
+
+#' Compute jenkins 2003 component using jenkins 2003 ratio equation
+#'
+#' @param dbh diameter at breast height
+#' @param b0 model parameter 1
+#' @param b1 model parameter 2
+#' @param bio Biomass (total tree biomass) of which the component is a fraction
+#' of
+#'
+#' @return biomass in lbs
+#'
 get_jenkins_component <- function(dbh, b0, b1, bio) {
     ratio <- exp(b0 + (b1 / measurements::conv_unit(dbh, "inch", "cm")))
     bio * ratio
 }
 
+#' Compute Jenkins et al. 2003 total tree (including foliage)
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return A float indicating the total tree biomass in lbs.
+#'
 get_jenkins_total_biomass <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -210,6 +285,12 @@ get_jenkins_total_biomass <- function(data) {
     return(jenkins_total_biomass)
 }
 
+#' Compute Jenkins et al. 2003 foliage biomass
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return A float indicating the foliage biomass in lbs.
+#'
 get_jenkins_foliage_biomass <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -231,6 +312,12 @@ get_jenkins_foliage_biomass <- function(data) {
 
 }
 
+#' Compute Jenkins et al. 2003 bole wood biomass
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return A float indicating the bole wood biomass in lbs.
+#'
 get_jenkins_bole_wood_biomass <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -250,6 +337,12 @@ get_jenkins_bole_wood_biomass <- function(data) {
     return(jenkins_bole_wood_biomass)
 }
 
+#' Compute Jenkins et al. 2003 bole bark biomass
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return A float indicating the bole bark biomass in lbs.
+#'
 get_jenkins_bole_bark_biomass <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -269,7 +362,15 @@ get_jenkins_bole_bark_biomass <- function(data) {
     return(jenkins_bole_bark_biomass)
 }
 
+
+#' Compute Jenkins et al. 2003 bole biomass (wood + bark)
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return A float indicating the bole biomass in lbs.
+#'
 get_jenkins_bole_biomass <- function(data) {
+
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
     }
@@ -284,7 +385,16 @@ get_jenkins_bole_biomass <- function(data) {
     return(jenkins_bole_biomass)
 }
 
+#' Raile 1982 Stump volume
+#'
+#' @param A first coefficient
+#' @param B second coefficient
+#' @param dbh diameter at breast height
+#'
+#' @return float value indicating stump bolume (0-1ft tall) in cubic feet.
+#'
 get_stump_volume <- function(A, B, dbh) {
+
 
     stump_vol <- ((pi * (dbh ^ 2)) / (4.0 * 144.0)) *
         (
@@ -299,6 +409,15 @@ get_stump_volume <- function(A, B, dbh) {
     return(stump_vol)
 }
 
+#' Compute Raile 1982 stump biomass
+#'
+#' Computes stump biomass (0 to 1ft tall) for individual tree's using the
+#' Raile 1982 models.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float indicating oven-dry stump biomass in lbs.
+#'
 get_raile_stump_biomass <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -315,13 +434,23 @@ get_raile_stump_biomass <- function(data) {
     stump_vol_i <- get_stump_volume(inside_A, inside_B, data$dbh)
     stump_vol_o <- get_stump_volume(1, outside_B, data$dbh)
 
-    stump_bio_i <- stump_vol_i * data$wood_spec_grav * data$w
-    stump_bio_o <- (stump_vol_o - stump_vol_i) * data$bark_spec_grav * data$w
+    stump_bio_i <- stump_vol_i * data$wood_spec_grav * 62.4
+    stump_bio_o <- (stump_vol_o - stump_vol_i) * data$bark_spec_grav * 62.4
     total_stump_bio <- (stump_bio_i + stump_bio_o)
     return(total_stump_bio)
 
 }
 
+#' Compute bole wood biomass
+#'
+#' Computes tree-level bole wood biomass for individual tree's following the
+#' Woodall et al. 2011 Component Ratio Method (CRM), and using Domke et al. 2011
+#' density reduction and structural loss ratios for standing dead trees.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float indicating oven-dry bole wood biomass in lbs.
+#'
 get_bole_wood_biomass <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -332,16 +461,26 @@ get_bole_wood_biomass <- function(data) {
         data$drf <- get_density_reduction_factor(data)
     }
 
-    data <- sample_residuals(data)
+    data <- add_residuals(data)
 
     data$snd_vol <- get_snd_vol(data)
-    bw_biomass <- data$snd_vol * data$wood_spec_grav * data$w
+    bw_biomass <- data$snd_vol * data$wood_spec_grav * 62.4
     if (data$is_dead) {
         bw_biomass <- bw_biomass * data$sl_bole * data$drf
     }
     return(bw_biomass)
 }
 
+#' Compute bole bark biomass
+#'
+#' Computes bole bark biomass for individual tree's following the
+#' Woodall et al. 2011 Component Ratio Method (CRM), and using Domke et al. 2011
+#' density reduction and structural loss ratios for standing dead trees.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float indicating oven-dry bole bark biomass in lbs.
+#'
 get_bole_bark_biomass <- function(data) {
     if (class(data) != 'crm_data') {
         stop(get_crm_data_type_error())
@@ -353,17 +492,37 @@ get_bole_bark_biomass <- function(data) {
         data$drf <- get_density_reduction_factor(data)
     }
 
-    data <- sample_residuals(data)
+    data <- add_residuals(data)
 
     data$snd_vol <- get_snd_vol(data)
-    bb_biomass <- data$snd_vol * (data$bark_percent / 100.0) * data$bark_spec_grav * data$w
+    bb_biomass <- data$snd_vol * (data$bark_percent / 100.0) * data$bark_spec_grav * 62.4
     if (data$is_dead) {
         bb_biomass <- bb_biomass * data$sl_bark * data$drf
     }
     return(bb_biomass)
 }
 
-sample_residuals <- function(data) {
+#' Add residuals to input parameters for uncertainty quantification
+#'
+#' Adjust inputs and parameters with residuals sampled from assumed error
+#' distributions. This is intended to factor into a monte carlo simulation
+#' where these tree-level measurement/parameter uncertainties are propagated
+#' up to some higher order estimation process (e.g. plot-level estimates,
+#' design-based estimates, model-based estimates)
+#'
+#' Residuals for dbh, boleht, cull, dc sampled using results from Yanai et al.
+#' 2022. Residuals for specific gravity (wood and bark) sampled from error
+#' distributions built with an assumed 10% cv within species documented in the
+#' USDA wood handbook chapter 3 (Ross 2021).
+#' Residuals for density reduction
+#' factors sampled from hardwood/softwood specific error distributions built
+#' with results from Harmon 2011.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return An object of type 'crm_data'
+#'
+add_residuals <- function(data) {
 
     if (data$needs_residuals) {
         # 1 is smallest DBH on subplots
@@ -384,6 +543,57 @@ sample_residuals <- function(data) {
     return(data)
 }
 
+#' Convert arguments into a crm_data object for computing volumes and individual
+#' biomass components.
+#'
+#' @param dbh Float - diameter at breast height
+#' @param boleht Float - height of tree bole
+#' @param species Integer - FIA species code
+#' @param cull Integer - percent indicating percent of tree that is rotten or
+#' missing
+#' @param dc Integer (1-5) - FIA decay class code  (DECAYCD)
+#' @param residual Boolean - indicating whether or not random residuals should
+#' be added to represent measurement and model error for uncertainty propagation
+#' @param bark_spec_grav Float indicating tree bark specific gravity for
+#' converting volume to biomass
+#' @param wood_spec_grav Float indicating tree wood specific gravity for
+#' converting volume to biomass
+#' @param volume_config file path to FIA's NE_config_volcfgrs.csv
+#' @param volume_coefficients file path to FIA's NE_coefs_volcfgrs.csv
+#' @param species_reference file path to FIA REF_SPECIES.csv
+#' @param bark_percent float indicating the percent of the tree bole volume
+#' that is bark
+#' @param drf  (density reduction factor) Float ratio to convert live biomass to
+#' standing dead biomass
+#' @param sl_top (structural loss factor - top) Float ratio to adjust standing
+#' dead biomass to account for missing/damaged top
+#' @param sl_bole (structural loss factor - bole) Float ratio to adjust standing
+#' dead biomass to account for missing/damaged bole
+#' @param sl_bark (structural loss factor - bark) Float ratio to adjust standing
+#' dead biomass to account for missing/damaged bark
+#' @param sl_stump (structural loss factor - stump) Float ratio to adjust
+#' standing dead biomass to account for missing/damaged stump
+#' @param grs_vol Float indicating gross volume of the tree (FIA VOLCFGRS)
+#' @param snd_vol Float indicating sound volume of the tree (FIA VOLCFNET)
+#' @param jenkins_total_biomass Float indicating jenkins et al. 2003 estimate
+#' of total tree biomass.
+#' @param crm_adj_factor (component ratio adjustment factor) Float indicating a
+#' ratio to adjust jenkins
+#' @param jenkins_bole_biomass Float indicating jenkins et al. 2003 estimate of
+#' bole biomass
+#' @param jenkins_foliage_biomass Float indicating jenkins et al. 2003 estimate
+#' of foliage biomass
+#' @param raile_stump_biomass Float indicating Raile 1982 estimate of
+#' stump biomass
+#' @param bole_biomass Float indicating CRM estimate of bole biomass
+#' (FIA's DRYBIO_BOLE)
+#' @param stump_biomass Float indicating CRM estimate of stump biomass
+#' (FIA's DRYBIO_STUMP)
+#' @param top_biomass Float indicating CRM estimate of top and branch biomass
+#' (FIA'S DRYBIO_TOP)
+#'
+#' @return an object of type `crm_data`
+#' @export
 prep_data <- function(dbh, boleht, species,
                       cull = NULL,
                       dc = NULL,
@@ -408,7 +618,7 @@ prep_data <- function(dbh, boleht, species,
                       raile_stump_biomass = NULL,
                       bole_biomass = NULL,
                       stump_biomass = NULL,
-                      top_biomass = NULL, w = 62.40) {
+                      top_biomass = NULL) {
 
     if (is.null(dbh) | is.null(boleht) | is.null(species)) {
         stop("Must provide dbh, boleht, and species arguments.")
@@ -428,6 +638,9 @@ prep_data <- function(dbh, boleht, species,
         volume_coefficients <- read.csv(here::here("data/NE_coefs_volcfgrs.csv"))
     }
     is_dead <- (!is.null(dc) && !is.na(dc))
+    if (is_dead && !dc %in% 1:5) {
+        stop("argument dc must be between 1 and 5.")
+    }
     structure(
         list(
             dbh = dbh,
@@ -455,7 +668,6 @@ prep_data <- function(dbh, boleht, species,
             bole_biomass = bole_biomass,
             top_biomass = top_biomass,
             crm_adj_factor = crm_adj_factor,
-            w = w,
             volume_config = volume_config,
             species_reference = species_reference,
             volume_coefficients = volume_coefficients,
@@ -465,6 +677,24 @@ prep_data <- function(dbh, boleht, species,
     )
 }
 
+#' Compute sound volume for individual trees
+#'
+#' Computes sound volume (VOLCFSND) for individual tree's using
+#' the Scott 1981 models and a cull reduction.
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @param data An object of type 'crm_data' (use `prep_data` to build) or a
+#' data.frame.
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating cubic foot sound volume of the tree
+#' @export
+#'
 get_snd_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
                         cull = NULL, volume_config = NULL, volume_coefficients = NULL,
                         residual = FALSE, ...) {
@@ -510,6 +740,22 @@ get_snd_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
     return(snd_vol)
 }
 
+#' Compute gross volume for individual trees
+#'
+#' Computes gross volume (VOLCFGRS) for individual tree's using
+#' the Scott 1981 models.
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating cubic foot gross volume of the tree.
+#' @export
+#'
 get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
                         volume_config = NULL, volume_coefficients = NULL,
                         residual = FALSE, ...) {
@@ -558,7 +804,23 @@ get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
     return(grs_vol)
 }
 
-
+#' Compute oven-dry bole biomass for individual trees
+#'
+#' Computes stump biomass for individual tree's following the
+#' Woodall et al. 2011 Component Ratio Method (CRM), and using Domke et al. 2011
+#' density reduction and structural loss ratios for standing dead trees.
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating oven-dry bole biomass in lbs.
+#' @export
+#'
 get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NULL,
                              cull = NULL, dc = NULL, residual = FALSE,
                              species_reference = NULL,
@@ -609,7 +871,7 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
             data$sl_bark <- get_structural_loss(data, 'bark')
         }
 
-        data <- sample_residuals(data)
+        data <- add_residuals(data)
 
         data$grs_vol <- get_grs_vol(data)
         data$snd_vol <- get_snd_vol(data)
@@ -622,6 +884,23 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
     return(total_bole_biomass)
 }
 
+#' Compute oven-dry stump biomass for individual trees
+#'
+#' Computes stump biomass (0 to 1ft tall) for individual tree's following the
+#' Woodall et al. 2011 Component Ratio Method (CRM), and using Domke et al. 2011
+#' density reduction and structural loss ratios for standing dead trees.
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating oven-dry stump biomass in lbs.
+#' @export
+#'
 get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
                               species = NULL, cull = NULL, dc = NULL,
                               residual = FALSE, species_reference = NULL,
@@ -681,7 +960,7 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
 
         }
 
-        data <- sample_residuals(data)
+        data <- add_residuals(data)
 
         data$jenkins_total_biomass <- get_jenkins_total_biomass(data)
         data$raile_stump_biomass <- get_raile_stump_biomass(data)
@@ -695,6 +974,24 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
     return(stump_biomass)
 }
 
+#' Compute oven-dry top and branch biomass for individual trees
+#'
+#' Computes top and branch biomass for individual tree's following the
+#' Woodall et al. 2011 Component Ratio Method (CRM), and using Domke et al. 2011
+#' density reduction and structural loss ratios for standing dead trees.
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating oven-dry top and branch (sans foliage)
+#' biomass in lbs.
+#' @export
+#'
 get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
                             species = NULL, cull = NULL, dc = NULL,
                             residual = FALSE, volume_config = NULL,
@@ -746,7 +1043,7 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
             data$sl_top <- get_structural_loss(data, 'top')
         }
 
-        data <- sample_residuals(data)
+        data <- add_residuals(data)
 
         data$jenkins_total_biomass <- get_jenkins_total_biomass(data)
         data$jenkins_bole_biomass <- get_jenkins_bole_biomass(data)
@@ -765,6 +1062,26 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
     return(top_biomass)
 }
 
+#' Compute oven-dry aboveground biomass for individual trees
+#'
+#' Computes aboveground biomass for individual tree's following the
+#' Woodall et al. 2011 Component Ratio Method (CRM), and using Domke et al. 2011
+#' density reduction and structural loss ratios for standing dead trees.
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#' @param ... optional arguments to be used in place of computed / looked up
+#' arguments. See prep_data for full list of arguments.
+#'
+#' @return Float value indicating oven-dry total tree (sans foliage) aboveground
+#' biomass in lbs.
+#' @export
+#'
 get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NULL,
                            cull = NULL, dc = NULL, residual = FALSE,
                            volume_config = NULL, volume_coefficients = NULL,
@@ -806,7 +1123,7 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
     if (is.na(data$dbh)) {
         ag_biomass <- 0
     } else if (data$dbh < 5) {
-        data <- sample_residuals(data)
+        data <- add_residuals(data)
         sapling_adj_fac <- data$species_reference |>
             dplyr::filter(SPCD == data$species) |>
             dplyr::pull(JENKINS_SAPLING_ADJUSTMENT)
@@ -826,7 +1143,7 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
             data$sl_bole <- get_structural_loss(data, 'bole')
             data$sl_bark <- get_structural_loss(data, 'bark')
         }
-        data <- sample_residuals(data)
+        data <- add_residuals(data)
 
         data$jenkins_total_biomass <- get_jenkins_total_biomass(data)
         data$jenkins_bole_biomass <- get_jenkins_bole_biomass(data)
