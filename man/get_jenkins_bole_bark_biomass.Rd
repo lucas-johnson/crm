@@ -6,6 +6,9 @@
 \usage{
 get_jenkins_bole_bark_biomass(data)
 }
+\arguments{
+\item{data}{an object of type \code{crm_data} (see prep_data), or a data.frame}
+}
 \value{
 A float indicating the bole bark biomass in lbs.
 }

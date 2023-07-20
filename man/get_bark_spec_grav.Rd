@@ -6,6 +6,9 @@
 \usage{
 get_bark_spec_grav(data)
 }
+\arguments{
+\item{data}{an object of type \code{crm_data} (see prep_data), or a data.frame}
+}
 \value{
 Float specific gravity
 }

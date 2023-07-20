@@ -11,11 +11,22 @@ get_grs_vol(
   boleht = NULL,
   volume_config = NULL,
   volume_coefficients = NULL,
-  residual = FALSE,
   ...
 )
 }
 \arguments{
+\item{data}{an object of type \code{crm_data} (see prep_data), or a data.frame}
+
+\item{dbh}{Float - diameter at breast height}
+
+\item{species}{Integer - FIA species code}
+
+\item{boleht}{Float - height of tree bole}
+
+\item{volume_config}{file path to FIA's NE_config_volcfgrs.csv}
+
+\item{volume_coefficients}{file path to FIA's NE_coefs_volcfgrs.csv}
+
 \item{...}{optional arguments to be used in place of computed / looked up
 arguments. See prep_data for full list of arguments.}
 }

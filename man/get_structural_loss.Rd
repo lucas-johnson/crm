@@ -7,6 +7,8 @@
 get_structural_loss(data, type)
 }
 \arguments{
+\item{data}{an object of type \code{crm_data} (see prep_data), or a data.frame}
+
 \item{type}{one of c('bole', 'bark', 'stump', 'top')}
 }
 \value{

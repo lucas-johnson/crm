@@ -221,7 +221,7 @@ remove_cull <- function(input, percent_cull_rotten) {
 #'
 #' Get component ratio adjustment factor to convert jenkins component estimates
 #' to CRM component estimates.
-#'
+#' @inheritParams get_ag_biomass
 #' @return Float adjustment factor
 #'
 get_crm_adjustment <- function(data) {
@@ -274,13 +274,6 @@ get_jenkins_total_biomass <- function(data) {
         b1 <- total_jenks_coefs$JENKINS_TOTAL_B2
         jenkins_total_biomass <- exp(b0 + b1 * log(measurements::conv_unit(data$dbh, "inch", "cm"))) |>
             measurements::conv_unit("kg", "lbs")
-        if (data$residual) {
-            jenkins_total_biomass <- jenkins_total_biomass +
-                get_jenkins_03_residual(
-                    jenkins_total_biomass,
-                    data$species_reference |>
-                        dplyr::pull(JENKINS_SPGRPCD))
-        }
     }
     return(jenkins_total_biomass)
 }
@@ -461,8 +454,6 @@ get_bole_wood_biomass <- function(data) {
         data$drf <- get_density_reduction_factor(data)
     }
 
-    data <- add_residuals(data)
-
     data$snd_vol <- get_snd_vol(data)
     bw_biomass <- data$snd_vol * data$wood_spec_grav * 62.4
     if (data$is_dead) {
@@ -492,8 +483,6 @@ get_bole_bark_biomass <- function(data) {
         data$drf <- get_density_reduction_factor(data)
     }
 
-    data <- add_residuals(data)
-
     data$snd_vol <- get_snd_vol(data)
     bb_biomass <- data$snd_vol * (data$bark_percent / 100.0) * data$bark_spec_grav * 62.4
     if (data$is_dead) {
@@ -502,46 +491,6 @@ get_bole_bark_biomass <- function(data) {
     return(bb_biomass)
 }
 
-#' Add residuals to input parameters for uncertainty quantification
-#'
-#' Adjust inputs and parameters with residuals sampled from assumed error
-#' distributions. This is intended to factor into a monte carlo simulation
-#' where these tree-level measurement/parameter uncertainties are propagated
-#' up to some higher order estimation process (e.g. plot-level estimates,
-#' design-based estimates, model-based estimates)
-#'
-#' Residuals for dbh, boleht, cull, dc sampled using results from Yanai et al.
-#' 2022. Residuals for specific gravity (wood and bark) sampled from error
-#' distributions built with an assumed 10% cv within species documented in the
-#' USDA wood handbook chapter 3 (Ross 2021).
-#' Residuals for density reduction
-#' factors sampled from hardwood/softwood specific error distributions built
-#' with results from Harmon 2011.
-#'
-#' @inheritParams get_ag_biomass
-#'
-#' @return An object of type 'crm_data'
-#'
-add_residuals <- function(data) {
-
-    if (data$needs_residuals) {
-        # 1 is smallest DBH on subplots
-        data$dbh <- max(c(data$dbh + get_dia_residual(), 1))
-        # 4 is shortest tree in DB
-        data$boleht <- max(c(data$boleht + get_ht_residual(), 4))
-        data$cull <- max(c(data$cull + get_cull_residual(), 0))
-        data$cull <- min(c(data$cull, 100))
-        data$wood_spec_grav <- data$wood_spec_grav + get_specific_grav_residual(data$wood_spec_grav)
-        data$bark_spec_grav <- data$bark_spec_grav + get_specific_grav_residual(data$bark_spec_grav)
-        if (data$is_dead) {
-            data$dc <- data$dc + get_decaycd_residual()
-            data$dc <- ifelse(data$dc < 1, 1, ifelse(data$dc > 5, 5, data$dc))
-            data$drf <- data$drf + get_drf_residual()
-        }
-        data$needs_residuals <- FALSE
-    }
-    return(data)
-}
 
 #' Convert arguments into a crm_data object for computing volumes and individual
 #' biomass components.
@@ -552,8 +501,6 @@ add_residuals <- function(data) {
 #' @param cull Integer - percent indicating percent of tree that is rotten or
 #' missing
 #' @param dc Integer (1-5) - FIA decay class code  (DECAYCD)
-#' @param residual Boolean - indicating whether or not random residuals should
-#' be added to represent measurement and model error for uncertainty propagation
 #' @param bark_spec_grav Float indicating tree bark specific gravity for
 #' converting volume to biomass
 #' @param wood_spec_grav Float indicating tree wood specific gravity for
@@ -597,7 +544,6 @@ add_residuals <- function(data) {
 prep_data <- function(dbh, boleht, species,
                       cull = NULL,
                       dc = NULL,
-                      residual = FALSE,
                       bark_spec_grav = NULL,
                       wood_spec_grav = NULL,
                       volume_config = NULL,
@@ -625,17 +571,17 @@ prep_data <- function(dbh, boleht, species,
     }
 
     if (is.null(species_reference)) {
-        species_reference <- read.csv(here::here("data/REF_SPECIES.csv")) |>
+        species_reference <- species_reference_default |>
             dplyr::filter(SPCD == species)
     } else {
         species_reference <- species_reference |>
             dplyr::filter(SPCD == species)
     }
     if (is.null(volume_config)) {
-        volume_config <- read.csv(here::here("data/NE_config_volcfgrs.csv"))
+        volume_config <- volume_config_northeast
     }
     if (is.null(volume_coefficients)) {
-        volume_coefficients <- read.csv(here::here("data/NE_coefs_volcfgrs.csv"))
+        volume_coefficients <- volume_coefficients_northeast
     }
     is_dead <- (!is.null(dc) && !is.na(dc))
     if (is_dead && !dc %in% 1:5) {
@@ -654,7 +600,6 @@ prep_data <- function(dbh, boleht, species,
             sl_bark = sl_bark,
             sl_bole = sl_bole,
             sl_stump = sl_stump,
-            residual = residual,
             bark_spec_grav = bark_spec_grav,
             wood_spec_grav = wood_spec_grav,
             bark_percent = bark_percent,
@@ -670,8 +615,7 @@ prep_data <- function(dbh, boleht, species,
             crm_adj_factor = crm_adj_factor,
             volume_config = volume_config,
             species_reference = species_reference,
-            volume_coefficients = volume_coefficients,
-            needs_residuals = residual
+            volume_coefficients = volume_coefficients
         ),
         class = 'crm_data'
     )
@@ -697,7 +641,7 @@ prep_data <- function(dbh, boleht, species,
 #'
 get_snd_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
                         cull = NULL, volume_config = NULL, volume_coefficients = NULL,
-                        residual = FALSE, ...) {
+                        ...) {
 
     if (inherits(data, 'data.frame')) {
         if (any(c(missing(dbh),
@@ -714,7 +658,6 @@ get_snd_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
         snd_vol <- data |>
             dplyr::rowwise() |>
             dplyr::mutate(snd_vol = get_snd_vol(!!!args,
-                                                residual = residual,
                                                 volume_config = volume_config,
                                                 volume_coefficients = volume_coefficients)) |>
             dplyr::ungroup() |>
@@ -722,18 +665,12 @@ get_snd_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
         return(snd_vol)
     } else if (class(data) != 'crm_data') {
         data <- prep_data(dbh, boleht, species, cull = cull,
-                          residual = residual,
                           volume_coefficients = volume_coefficients,
                           volume_config = volume_config, list(...))
     }
     if (!is.null(data$snd_vol)) {
         snd_vol <- data$snd_vol
     } else {
-        if (data$needs_residual) {
-            data$dbh <- data$dbh + get_dia_residual()
-            data$boleht <- data$boleht + get_ht_residual()
-            data$cull <- data$cull + get_cull_residual()
-        }
         data$grs_vol <- get_grs_vol(data)
         snd_vol <- remove_cull(data$grs_vol, data$cull)
     }
@@ -758,7 +695,7 @@ get_snd_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
 #'
 get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
                         volume_config = NULL, volume_coefficients = NULL,
-                        residual = FALSE, ...) {
+                        ...) {
     if (inherits(data, 'data.frame')) {
         if (any(c(missing(dbh),
                   missing(ht),
@@ -772,7 +709,6 @@ get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
         grs_vol <- data |>
             dplyr::rowwise() |>
             dplyr::mutate(grs_vol = get_grs_vol(!!!args,
-                                                residual = residual,
                                                 volume_config = volume_config,
                                                 volume_coefficients = volume_coefficients,
                                                 species_reference = species_reference)) |>
@@ -780,17 +716,13 @@ get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
             dplyr::pull(grs_vol)
         return(grs_vol)
     } else if (class(data) != 'crm_data') {
-        data <- prep_data(dbh, boleht, species, residual = residual,
+        data <- prep_data(dbh, boleht, species,
                           volume_coefficients = volume_coefficients,
                           volume_config = volume_config, list(...))
     }
     if (!is.null(data$grs_vol)) {
         grs_vol <- data$grs_vol
     } else {
-        if (data$needs_residual) {
-            dbh <- data$dbh + get_dia_residual()
-            boleht <- data$boleht + get_ht_residual()
-        }
 
         coef_sp_cd <- data$volume_config |>
             dplyr::filter(SPECIES_NUM == data$species) |>
@@ -822,7 +754,7 @@ get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
 #' @export
 #'
 get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NULL,
-                             cull = NULL, dc = NULL, residual = FALSE,
+                             cull = NULL, dc = NULL,
                              species_reference = NULL,
                              volume_coefficients = NULL,
                              volume_config = NULL, ...) {
@@ -842,7 +774,6 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
         bole_biomass <- data |>
             dplyr::rowwise() |>
             dplyr::mutate(bole_biomass = get_bole_biomass(!!!args,
-                                                            residual = residual,
                                                             volume_config = volume_config,
                                                             volume_coefficients = volume_coefficients,
                                                             species_reference = species_reference)) |>
@@ -856,8 +787,7 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
                                boleht,
                                species,
                                cull = cull,
-                               dc = dc,
-                               residual = residual),
+                               dc = dc),
                           list(...)))
     }
     if (is.na(data$dbh) | is.null(data$dbh) | is.na(data$boleht) | is.null(data$boleht)) {
@@ -870,8 +800,6 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
             data$sl_bole <- get_structural_loss(data, 'bole')
             data$sl_bark <- get_structural_loss(data, 'bark')
         }
-
-        data <- add_residuals(data)
 
         data$grs_vol <- get_grs_vol(data)
         data$snd_vol <- get_snd_vol(data)
@@ -903,7 +831,7 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
 #'
 get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
                               species = NULL, cull = NULL, dc = NULL,
-                              residual = FALSE, species_reference = NULL,
+                              species_reference = NULL,
                               volume_config = NULL,
                               volume_coefficients = NULL, ...) {
     if (inherits(data, 'data.frame')) {
@@ -922,7 +850,6 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
         stump_biomass <- data |>
             dplyr::rowwise() |>
             dplyr::mutate(stump_biomass = get_stump_biomass(!!!args,
-                                                      residual = residual,
                                                       volume_config = volume_config,
                                                       volume_coefficients = volume_coefficients,
                                                       species_reference = species_reference)) |>
@@ -936,8 +863,7 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
                                boleht,
                                species,
                                cull = cull,
-                               dc = dc,
-                               residual = residual),
+                               dc = dc),
                           list(...)))
     }
     if (is.na(data$dbh) | is.null(data$dbh) | is.na(data$boleht) | is.null(data$boleht)) {
@@ -959,8 +885,6 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
             data$sl_stump <- get_structural_loss(data, 'stump')
 
         }
-
-        data <- add_residuals(data)
 
         data$jenkins_total_biomass <- get_jenkins_total_biomass(data)
         data$raile_stump_biomass <- get_raile_stump_biomass(data)
@@ -994,7 +918,7 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
 #'
 get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
                             species = NULL, cull = NULL, dc = NULL,
-                            residual = FALSE, volume_config = NULL,
+                            volume_config = NULL,
                             volume_coefficients = NULL,
                             species_reference = NULL, ...) {
     if (inherits(data, 'data.frame')) {
@@ -1013,7 +937,6 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
         top_biomass <- data |>
             dplyr::rowwise() |>
             dplyr::mutate(top_biomass = get_top_biomass(!!!args,
-                                                        residual = residual,
                                                         volume_config = volume_config,
                                                         volume_coefficients = volume_coefficients,
                                                         species_reference = species_reference)) |>
@@ -1027,8 +950,7 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
                                boleht,
                                species,
                                cull = cull,
-                               dc = dc,
-                               residual = residual),
+                               dc = dc),
                           list(...)))
     }
     if (is.na(data$dbh) | is.null(data$dbh) | is.na(data$boleht) | is.null(data$boleht)) {
@@ -1042,8 +964,6 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
             data$sl_bark <- get_structural_loss(data, 'bark')
             data$sl_top <- get_structural_loss(data, 'top')
         }
-
-        data <- add_residuals(data)
 
         data$jenkins_total_biomass <- get_jenkins_total_biomass(data)
         data$jenkins_bole_biomass <- get_jenkins_bole_biomass(data)
@@ -1074,7 +994,8 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
 #' data.frame and the computations will be carried out rowwise. In this case
 #' a vector of values will be returned in place of a single float.
 #'
-#' @inheritParams get_ag_biomass
+#' @inheritParams prep_data
+#' @param data an object of type `crm_data` (see prep_data), or a data.frame
 #' @param ... optional arguments to be used in place of computed / looked up
 #' arguments. See prep_data for full list of arguments.
 #'
@@ -1083,7 +1004,7 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
 #' @export
 #'
 get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NULL,
-                           cull = NULL, dc = NULL, residual = FALSE,
+                           cull = NULL, dc = NULL,
                            volume_config = NULL, volume_coefficients = NULL,
                            species_reference = NULL, ...) {
     if (inherits(data, 'data.frame')) {
@@ -1102,7 +1023,6 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
         ag_biomass <- data |>
             dplyr::rowwise() |>
             dplyr::mutate(ag_biomass = get_ag_biomass(!!!args,
-                                                      residual = residual,
                                                       volume_config = volume_config,
                                                       volume_coefficients = volume_coefficients,
                                                       species_reference = species_reference)) |>
@@ -1116,14 +1036,12 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
                                boleht,
                                species,
                                cull = cull,
-                               dc = dc,
-                               residual = residual),
+                               dc = dc),
                           list(...)))
     }
     if (is.na(data$dbh)) {
         ag_biomass <- 0
     } else if (data$dbh < 5) {
-        data <- add_residuals(data)
         sapling_adj_fac <- data$species_reference |>
             dplyr::filter(SPCD == data$species) |>
             dplyr::pull(JENKINS_SAPLING_ADJUSTMENT)
@@ -1143,7 +1061,6 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
             data$sl_bole <- get_structural_loss(data, 'bole')
             data$sl_bark <- get_structural_loss(data, 'bark')
         }
-        data <- add_residuals(data)
 
         data$jenkins_total_biomass <- get_jenkins_total_biomass(data)
         data$jenkins_bole_biomass <- get_jenkins_bole_biomass(data)

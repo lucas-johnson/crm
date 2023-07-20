@@ -6,6 +6,9 @@
 \usage{
 get_density_reduction_factor(data)
 }
+\arguments{
+\item{data}{an object of type \code{crm_data} (see prep_data), or a data.frame}
+}
 \value{
 Float density reduction factor
 }

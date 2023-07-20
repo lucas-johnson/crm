@@ -6,6 +6,9 @@
 \usage{
 get_raile_stump_biomass(data)
 }
+\arguments{
+\item{data}{an object of type \code{crm_data} (see prep_data), or a data.frame}
+}
 \value{
 Float indicating oven-dry stump biomass in lbs.
 }

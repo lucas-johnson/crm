@@ -12,13 +12,25 @@ get_snd_vol(
   cull = NULL,
   volume_config = NULL,
   volume_coefficients = NULL,
-  residual = FALSE,
   ...
 )
 }
 \arguments{
 \item{data}{An object of type 'crm_data' (use \code{prep_data} to build) or a
 data.frame.}
+
+\item{dbh}{Float - diameter at breast height}
+
+\item{species}{Integer - FIA species code}
+
+\item{boleht}{Float - height of tree bole}
+
+\item{cull}{Integer - percent indicating percent of tree that is rotten or
+missing}
+
+\item{volume_config}{file path to FIA's NE_config_volcfgrs.csv}
+
+\item{volume_coefficients}{file path to FIA's NE_coefs_volcfgrs.csv}
 
 \item{...}{optional arguments to be used in place of computed / looked up
 arguments. See prep_data for full list of arguments.}

@@ -11,7 +11,6 @@ prep_data(
   species,
   cull = NULL,
   dc = NULL,
-  residual = FALSE,
   bark_spec_grav = NULL,
   wood_spec_grav = NULL,
   volume_config = NULL,
@@ -46,9 +45,6 @@ prep_data(
 missing}
 
 \item{dc}{Integer (1-5) - FIA decay class code  (DECAYCD)}
-
-\item{residual}{Boolean - indicating whether or not random residuals should
-be added to represent measurement and model error for uncertainty propagation}
 
 \item{bark_spec_grav}{Float indicating tree bark specific gravity for
 converting volume to biomass}
