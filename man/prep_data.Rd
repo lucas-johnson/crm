@@ -26,6 +26,8 @@ prep_data(
   snd_vol = NULL,
   jenkins_total_biomass = NULL,
   crm_adj_factor = NULL,
+  jenkins_bole_wood_biomass = NULL,
+  jenkins_bole_bark_biomass = NULL,
   jenkins_bole_biomass = NULL,
   jenkins_foliage_biomass = NULL,
   raile_stump_biomass = NULL,
@@ -85,6 +87,12 @@ of total tree biomass.}
 
 \item{crm_adj_factor}{(component ratio adjustment factor) Float indicating a
 ratio to adjust jenkins}
+
+\item{jenkins_bole_wood_biomass}{Float indicating jenkins et al. 2003 estimate of
+bole biomass}
+
+\item{jenkins_bole_bark_biomass}{Float indicating jenkins et al. 2003 estimate of
+bole biomass}
 
 \item{jenkins_bole_biomass}{Float indicating jenkins et al. 2003 estimate of
 bole biomass}

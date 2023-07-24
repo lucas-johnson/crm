@@ -17,11 +17,15 @@ get_crm_data_type_error <- function() {
 #'
 #' @return a list of expressions to be used as column names
 #'
-ensym_cols <- function(grs_vol = NULL,
+ensym_cols <- function(cull = NULL,
+                       dc = NULL,
+                       grs_vol = NULL,
                        snd_vol = NULL,
                        jenkins_total_biomass = NULL,
                        crm_adj_factor = NULL,
                        jenkins_bole_biomass = NULL,
+                       jenkins_bole_wood_biomass = NULL,
+                       jenkins_bole_bark_biomass = NULL,
                        jenkins_foliage_biomass = NULL,
                        raile_stump_biomass = NULL,
                        bole_biomass = NULL,
@@ -36,8 +40,11 @@ ensym_cols <- function(grs_vol = NULL,
                        sl_bark = NULL,
                        sl_stump = NULL) {
     args <- list()
-    if (!missing(grs_vol)) {
-        args <- append(args, rlang::ensyms(grs_vol = grs_vol))
+    if (!missing(cull)) {
+        args <- append(args, rlang::ensyms(cull = cull))
+    }
+    if (!missing(dc)) {
+        args <- append(args, rlang::ensyms(dc = dc))
     }
     if (!missing(snd_vol)) {
         args <- append(args, rlang::ensyms(snd_vol = snd_vol))
@@ -50,6 +57,12 @@ ensym_cols <- function(grs_vol = NULL,
     }
     if (!missing(jenkins_bole_biomass)) {
         args <- append(args, rlang::ensyms(jenkins_bole_biomass = jenkins_bole_biomass))
+    }
+    if (!missing(jenkins_bole_wood_biomass)) {
+        args <- append(args, rlang::ensyms(jenkins_bole_wood_biomass = jenkins_bole_wood_biomass))
+    }
+    if (!missing(jenkins_bole_bark_biomass)) {
+        args <- append(args, rlang::ensyms(jenkins_bole_bark_biomass = jenkins_bole_bark_biomass))
     }
     if (!missing(jenkins_foliage_biomass)) {
         args <- append(args, rlang::ensyms(jenkins_foliage_biomass = jenkins_foliage_biomass))
@@ -254,130 +267,6 @@ get_jenkins_component <- function(dbh, b0, b1, bio) {
     bio * ratio
 }
 
-#' Compute Jenkins et al. 2003 total tree (including foliage)
-#'
-#' @inheritParams get_ag_biomass
-#'
-#' @return A float indicating the total tree biomass in lbs.
-#'
-get_jenkins_total_biomass <- function(data) {
-    if (class(data) != 'crm_data') {
-        stop(get_crm_data_type_error())
-    }
-    if (!is.null(data$jenkins_total_biomass)) {
-        jenkins_total_biomass <- data$jenkins_total_biomass
-    } else {
-        total_jenks_coefs <- data$species_reference |>
-            dplyr::select(JENKINS_TOTAL_B1, JENKINS_TOTAL_B2)
-
-        b0 <- total_jenks_coefs$JENKINS_TOTAL_B1
-        b1 <- total_jenks_coefs$JENKINS_TOTAL_B2
-        jenkins_total_biomass <- exp(b0 + b1 * log(measurements::conv_unit(data$dbh, "inch", "cm"))) |>
-            measurements::conv_unit("kg", "lbs")
-    }
-    return(jenkins_total_biomass)
-}
-
-#' Compute Jenkins et al. 2003 foliage biomass
-#'
-#' @inheritParams get_ag_biomass
-#'
-#' @return A float indicating the foliage biomass in lbs.
-#'
-get_jenkins_foliage_biomass <- function(data) {
-    if (class(data) != 'crm_data') {
-        stop(get_crm_data_type_error())
-    }
-    if (!is.null(data$jenkins_foliage_biomass)) {
-        jenkins_foliage_biomass <- data$jenkins_foliage_biomass
-    } else {
-        foliage_jenks_coefs <- data$species_reference |>
-            dplyr::select(JENKINS_FOLIAGE_RATIO_B1, JENKINS_FOLIAGE_RATIO_B2)
-
-        jenkins_foliage_biomass <- get_jenkins_component(
-            data$dbh,
-            foliage_jenks_coefs$JENKINS_FOLIAGE_RATIO_B1,
-            foliage_jenks_coefs$JENKINS_FOLIAGE_RATIO_B2,
-            get_jenkins_total_biomass(data)
-        )
-        return(jenkins_foliage_biomass)
-    }
-
-}
-
-#' Compute Jenkins et al. 2003 bole wood biomass
-#'
-#' @inheritParams get_ag_biomass
-#'
-#' @return A float indicating the bole wood biomass in lbs.
-#'
-get_jenkins_bole_wood_biomass <- function(data) {
-    if (class(data) != 'crm_data') {
-        stop(get_crm_data_type_error())
-    }
-    if (!is.null(data$jenkins_bole_wood_biomass)) {
-        jenkins_bole_wood_biomass <- data$jenkins_bole_wood_biomass
-    } else {
-        bole_wood_jenks_coefs <- data$species_reference |>
-            dplyr::select(JENKINS_STEM_WOOD_RATIO_B1, JENKINS_STEM_WOOD_RATIO_B2)
-        jenkins_bole_wood_biomass <- get_jenkins_component(
-            data$dbh,
-            bole_wood_jenks_coefs$JENKINS_STEM_WOOD_RATIO_B1,
-            bole_wood_jenks_coefs$JENKINS_STEM_WOOD_RATIO_B2,
-            get_jenkins_total_biomass(data)
-        )
-    }
-    return(jenkins_bole_wood_biomass)
-}
-
-#' Compute Jenkins et al. 2003 bole bark biomass
-#'
-#' @inheritParams get_ag_biomass
-#'
-#' @return A float indicating the bole bark biomass in lbs.
-#'
-get_jenkins_bole_bark_biomass <- function(data) {
-    if (class(data) != 'crm_data') {
-        stop(get_crm_data_type_error())
-    }
-    if (!is.null(data$jenkins_bole_bark_biomass)) {
-        jenkins_bole_bark_biomass <- data$jenkins_bole_bark_biomass
-    } else {
-        bole_bark_jenks_coefs <- data$species_reference |>
-            dplyr::select(JENKINS_STEM_BARK_RATIO_B1, JENKINS_STEM_BARK_RATIO_B2)
-        jenkins_bole_bark_biomass <- get_jenkins_component(
-            data$dbh,
-            bole_bark_jenks_coefs$JENKINS_STEM_BARK_RATIO_B1,
-            bole_bark_jenks_coefs$JENKINS_STEM_BARK_RATIO_B2,
-            get_jenkins_total_biomass(data)
-        )
-    }
-    return(jenkins_bole_bark_biomass)
-}
-
-
-#' Compute Jenkins et al. 2003 bole biomass (wood + bark)
-#'
-#' @inheritParams get_ag_biomass
-#'
-#' @return A float indicating the bole biomass in lbs.
-#'
-get_jenkins_bole_biomass <- function(data) {
-
-    if (class(data) != 'crm_data') {
-        stop(get_crm_data_type_error())
-    }
-    if (!is.null(data$jenkins_bole_biomass)) {
-        jenkins_bole_biomass <- data$jenkins_bole_biomass
-    } else {
-        bole_wood_bio <- get_jenkins_bole_wood_biomass(data)
-        bark_wood_bio <- get_jenkins_bole_bark_biomass(data)
-        jenkins_bole_biomass <- bole_wood_bio + bark_wood_bio
-    }
-
-    return(jenkins_bole_biomass)
-}
-
 #' Raile 1982 Stump volume
 #'
 #' @param A first coefficient
@@ -402,37 +291,6 @@ get_stump_volume <- function(A, B, dbh) {
     return(stump_vol)
 }
 
-#' Compute Raile 1982 stump biomass
-#'
-#' Computes stump biomass (0 to 1ft tall) for individual tree's using the
-#' Raile 1982 models.
-#'
-#' @inheritParams get_ag_biomass
-#'
-#' @return Float indicating oven-dry stump biomass in lbs.
-#'
-get_raile_stump_biomass <- function(data) {
-    if (class(data) != 'crm_data') {
-        stop(get_crm_data_type_error())
-    }
-    data$wood_spec_grav <- get_wood_spec_grav(data)
-    data$bark_spec_grav <- get_bark_spec_grav(data)
-    stump_coefs <- data$species_reference |>
-        dplyr::select(RAILE_STUMP_DOB_B1, RAILE_STUMP_DIB_B1, RAILE_STUMP_DIB_B2)
-
-    inside_A <- stump_coefs$RAILE_STUMP_DIB_B1
-    inside_B <- stump_coefs$RAILE_STUMP_DIB_B2
-    outside_B <-  stump_coefs$RAILE_STUMP_DOB_B1
-
-    stump_vol_i <- get_stump_volume(inside_A, inside_B, data$dbh)
-    stump_vol_o <- get_stump_volume(1, outside_B, data$dbh)
-
-    stump_bio_i <- stump_vol_i * data$wood_spec_grav * 62.4
-    stump_bio_o <- (stump_vol_o - stump_vol_i) * data$bark_spec_grav * 62.4
-    total_stump_bio <- (stump_bio_i + stump_bio_o)
-    return(total_stump_bio)
-
-}
 
 #' Compute bole wood biomass
 #'
@@ -528,6 +386,10 @@ get_bole_bark_biomass <- function(data) {
 #' ratio to adjust jenkins
 #' @param jenkins_bole_biomass Float indicating jenkins et al. 2003 estimate of
 #' bole biomass
+#' @param jenkins_bole_wood_biomass Float indicating jenkins et al. 2003 estimate of
+#' bole biomass
+#' @param jenkins_bole_bark_biomass Float indicating jenkins et al. 2003 estimate of
+#' bole biomass
 #' @param jenkins_foliage_biomass Float indicating jenkins et al. 2003 estimate
 #' of foliage biomass
 #' @param raile_stump_biomass Float indicating Raile 1982 estimate of
@@ -559,29 +421,30 @@ prep_data <- function(dbh, boleht, species,
                       snd_vol = NULL,
                       jenkins_total_biomass = NULL,
                       crm_adj_factor = NULL,
+                      jenkins_bole_wood_biomass = NULL,
+                      jenkins_bole_bark_biomass = NULL,
                       jenkins_bole_biomass = NULL,
                       jenkins_foliage_biomass = NULL,
                       raile_stump_biomass = NULL,
                       bole_biomass = NULL,
                       stump_biomass = NULL,
                       top_biomass = NULL) {
-
     if (is.null(dbh) | is.null(boleht) | is.null(species)) {
         stop("Must provide dbh, boleht, and species arguments.")
     }
 
     if (is.null(species_reference)) {
-        species_reference <- species_reference_default |>
+        species_reference <- crm::species_reference_default |>
             dplyr::filter(SPCD == species)
     } else {
         species_reference <- species_reference |>
             dplyr::filter(SPCD == species)
     }
     if (is.null(volume_config)) {
-        volume_config <- volume_config_northeast
+        volume_config <- crm::volume_config_northeast
     }
     if (is.null(volume_coefficients)) {
-        volume_coefficients <- volume_coefficients_northeast
+        volume_coefficients <- crm::volume_coefficients_northeast
     }
     is_dead <- (!is.null(dc) && !is.na(dc))
     if (is_dead && !dc %in% 1:5) {
@@ -607,6 +470,9 @@ prep_data <- function(dbh, boleht, species,
             snd_vol = snd_vol,
             jenkins_total_biomass = jenkins_total_biomass,
             jenkins_bole_biomass = jenkins_bole_biomass,
+            jenkins_bole_biomass = jenkins_bole_biomass,
+            jenkins_bole_wood_biomass = jenkins_bole_wood_biomass,
+            jenkins_bole_bark_biomass = jenkins_bole_bark_biomass,
             jenkins_foliage_biomass = jenkins_foliage_biomass,
             raile_stump_biomass = raile_stump_biomass,
             stump_biomass = stump_biomass,
@@ -621,6 +487,346 @@ prep_data <- function(dbh, boleht, species,
     )
 }
 
+#' Compute Jenkins et al. 2003 total tree (including foliage)
+#'
+#' ...
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @param data An object of type 'crm_data' (use `prep_data` to build) or a
+#' data.frame.
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating cubic foot sound volume of the tree
+#' @export
+#'
+get_jenkins_total_biomass <- function(data = NULL, dbh = NULL, species = NULL,
+                                      species_reference = NULL, ...) {
+    if (inherits(data, 'data.frame')) {
+        if (any(c(missing(dbh),
+                  missing(species)))) {
+            stop(paste0("When 'data' argument is a data.frame, 'dbh', ",
+                        "'species' must all be ",
+                        "supplied as column names."))
+        }
+        args <- c(rlang::ensyms(dbh = dbh, species = species),
+                  ensym_cols(...))
+        jenkins_total_biomass <- data |>
+            dplyr::rowwise() |>
+            dplyr::mutate(jenkins_total_biomass = get_jenkins_total_biomass(
+                !!!args,
+                species_reference = species_reference)) |>
+            dplyr::ungroup() |>
+            dplyr::pull(jenkins_total_biomass)
+        return(jenkins_total_biomass)
+    } else if (class(data) != 'crm_data') {
+        data <- do.call(prep_data,
+                        c(list(dbh, 0, species,
+                               species_reference = species_reference),
+                          list(...)))
+    }
+    if (!is.null(data$jenkins_total_biomass)) {
+        jenkins_total_biomass <- data$jenkins_total_biomass
+    } else {
+        total_jenks_coefs <- data$species_reference |>
+            dplyr::select(JENKINS_TOTAL_B1, JENKINS_TOTAL_B2)
+
+        b0 <- total_jenks_coefs$JENKINS_TOTAL_B1
+        b1 <- total_jenks_coefs$JENKINS_TOTAL_B2
+        jenkins_total_biomass <- exp(b0 + b1 * log(measurements::conv_unit(data$dbh, "inch", "cm"))) |>
+            measurements::conv_unit("kg", "lbs")
+    }
+    return(jenkins_total_biomass)
+}
+
+#' Compute Jenkins et al. 2003 foliage biomass
+#'
+#' ...
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating cubic foot sound volume of the tree
+#' @export
+#'
+get_jenkins_foliage_biomass <- function(data = NULL, dbh = NULL, species = NULL,
+                                        species_reference = NULL, ...) {
+    if (inherits(data, 'data.frame')) {
+        if (any(c(missing(dbh),
+                  missing(species)))) {
+            stop(paste0("When 'data' argument is a data.frame, 'dbh', ",
+                        "'species' must all be ",
+                        "supplied as column names."))
+        }
+        args <- c(rlang::ensyms(dbh = dbh, species = species),
+                  ensym_cols(...))
+        jenkins_foliage_biomass <- data |>
+            dplyr::rowwise() |>
+            dplyr::mutate(jenkins_foliage_biomass = get_jenkins_foliage_biomass(
+                !!!args,
+                species_reference = species_reference)) |>
+            dplyr::ungroup() |>
+            dplyr::pull(jenkins_foliage_biomass)
+        return(jenkins_foliage_biomass)
+    } else if (class(data) != 'crm_data') {
+        data <- do.call(prep_data,
+                        c(list(dbh, 0, species,
+                               species_reference = species_reference),
+                          list(...)))
+    }
+    if (!is.null(data$jenkins_foliage_biomass)) {
+        jenkins_foliage_biomass <- data$jenkins_foliage_biomass
+    } else {
+        foliage_jenks_coefs <- data$species_reference |>
+            dplyr::select(JENKINS_FOLIAGE_RATIO_B1, JENKINS_FOLIAGE_RATIO_B2)
+
+        jenkins_foliage_biomass <- get_jenkins_component(
+            data$dbh,
+            foliage_jenks_coefs$JENKINS_FOLIAGE_RATIO_B1,
+            foliage_jenks_coefs$JENKINS_FOLIAGE_RATIO_B2,
+            get_jenkins_total_biomass(data)
+        )
+    }
+    return(jenkins_foliage_biomass)
+
+}
+
+#' Compute Jenkins et al. 2003 bole wood biomass
+#'
+#' ...
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating cubic foot sound volume of the tree
+#' @export
+#'
+get_jenkins_bole_wood_biomass <- function(data = NULL, dbh = NULL, species = NULL,
+                                          species_reference = NULL, ...) {
+    if (inherits(data, 'data.frame')) {
+        if (any(c(missing(dbh),
+                  missing(species)))) {
+            stop(paste0("When 'data' argument is a data.frame, 'dbh', ",
+                        "'species' must all be ",
+                        "supplied as column names."))
+        }
+        args <- c(rlang::ensyms(dbh = dbh, species = species),
+                  ensym_cols(...))
+        jenkins_bole_wood_biomass <- data |>
+            dplyr::rowwise() |>
+            dplyr::mutate(jenkins_bole_wood_biomass = get_jenkins_bole_wood_biomass(
+                !!!args,
+                species_reference = species_reference)) |>
+            dplyr::ungroup() |>
+            dplyr::pull(jenkins_bole_wood_biomass)
+        return(jenkins_bole_wood_biomass)
+    } else if (class(data) != 'crm_data') {
+        data <- do.call(prep_data,
+                        c(list(dbh, 0, species,
+                               species_reference = species_reference),
+                          list(...)))
+    }
+    if (!is.null(data$jenkins_bole_wood_biomass)) {
+        jenkins_bole_wood_biomass <- data$jenkins_bole_wood_biomass
+    } else {
+        bole_wood_jenks_coefs <- data$species_reference |>
+            dplyr::select(JENKINS_STEM_WOOD_RATIO_B1, JENKINS_STEM_WOOD_RATIO_B2)
+        jenkins_bole_wood_biomass <- get_jenkins_component(
+            data$dbh,
+            bole_wood_jenks_coefs$JENKINS_STEM_WOOD_RATIO_B1,
+            bole_wood_jenks_coefs$JENKINS_STEM_WOOD_RATIO_B2,
+            get_jenkins_total_biomass(data)
+        )
+    }
+    return(jenkins_bole_wood_biomass)
+}
+
+#' Compute Jenkins et al. 2003 bole bark biomass
+#'
+#' ...
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating cubic foot sound volume of the tree
+#' @export
+#'
+get_jenkins_bole_bark_biomass <- function(data = NULL, dbh = NULL, species = NULL,
+                                          species_reference = NULL, ...) {
+    if (inherits(data, 'data.frame')) {
+        if (any(c(missing(dbh),
+                  missing(species)))) {
+            stop(paste0("When 'data' argument is a data.frame, 'dbh', ",
+                        "'species' must all be ",
+                        "supplied as column names."))
+        }
+        args <- c(rlang::ensyms(dbh = dbh, species = species),
+                  ensym_cols(...))
+        jenkins_bole_bark_biomass <- data |>
+            dplyr::rowwise() |>
+            dplyr::mutate(jenkins_bole_bark_biomass = get_jenkins_bole_bark_biomass(
+                !!!args,
+                species_reference = species_reference)) |>
+            dplyr::ungroup() |>
+            dplyr::pull(jenkins_bole_bark_biomass)
+        return(jenkins_bole_bark_biomass)
+    } else if (class(data) != 'crm_data') {
+        data <- do.call(prep_data,
+                        c(list(dbh, 0, species,
+                               species_reference = species_reference),
+                          list(...)))
+    }
+    if (!is.null(data$jenkins_bole_bark_biomass)) {
+        jenkins_bole_bark_biomass <- data$jenkins_bole_bark_biomass
+    } else {
+        bole_bark_jenks_coefs <- data$species_reference |>
+            dplyr::select(JENKINS_STEM_BARK_RATIO_B1, JENKINS_STEM_BARK_RATIO_B2)
+        jenkins_bole_bark_biomass <- get_jenkins_component(
+            data$dbh,
+            bole_bark_jenks_coefs$JENKINS_STEM_BARK_RATIO_B1,
+            bole_bark_jenks_coefs$JENKINS_STEM_BARK_RATIO_B2,
+            get_jenkins_total_biomass(data)
+        )
+    }
+    return(jenkins_bole_bark_biomass)
+}
+
+
+#' Compute Jenkins et al. 2003 bole biomass (wood + bark)
+#'
+#' ...
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating cubic foot sound volume of the tree
+#' @export
+#'
+get_jenkins_bole_biomass <- function(data = NULL, dbh = NULL, species = NULL,
+                                     species_reference = NULL, ...) {
+
+    if (inherits(data, 'data.frame')) {
+        if (any(c(missing(dbh),
+                  missing(species)))) {
+            stop(paste0("When 'data' argument is a data.frame, 'dbh', ",
+                        "'species' must all be ",
+                        "supplied as column names."))
+        }
+        args <- c(rlang::ensyms(dbh = dbh, species = species),
+                  ensym_cols(...))
+        jenkins_bole_biomass <- data |>
+            dplyr::rowwise() |>
+            dplyr::mutate(jenkins_bole_biomass = get_jenkins_bole_biomass(
+                !!!args,
+                species_reference = species_reference)) |>
+            dplyr::ungroup() |>
+            dplyr::pull(jenkins_bole_biomass)
+        return(jenkins_bole_biomass)
+    } else if (class(data) != 'crm_data') {
+        data <- do.call(prep_data,
+                        c(list(dbh, 0, species,
+                               species_reference = species_reference),
+                          list(...)))
+    }
+    if (!is.null(data$jenkins_bole_biomass)) {
+        jenkins_bole_biomass <- data$jenkins_bole_biomass
+    } else {
+        bole_wood_bio <- get_jenkins_bole_wood_biomass(data)
+        bark_wood_bio <- get_jenkins_bole_bark_biomass(data)
+        jenkins_bole_biomass <- bole_wood_bio + bark_wood_bio
+    }
+
+    return(jenkins_bole_biomass)
+}
+
+#' Compute Raile 1982 stump biomass
+#'
+#' Computes stump biomass (0 to 1ft tall) for individual tree's using the
+#' Raile 1982 models.
+#'
+#' If `data` is null then dbh, boleht, and species are required and an object of
+#' type 'crm_data' will be built for you. If `data` inherits from data.frame
+#' then additional arguments are expected to be names of columns in the
+#' data.frame and the computations will be carried out rowwise. In this case
+#' a vector of values will be returned in place of a single float.
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float value indicating cubic foot sound volume of the tree
+#' @export
+#'
+get_raile_stump_biomass <- function(data = NULL, dbh = NULL, species = NULL,
+                                    species_reference = NULL, ...) {
+    if (inherits(data, 'data.frame')) {
+        if (any(c(missing(dbh),
+                  missing(species)))) {
+            stop(paste0("When 'data' argument is a data.frame, 'dbh', ",
+                        "'species' must all be ",
+                        "supplied as column names."))
+        }
+        args <- c(rlang::ensyms(dbh = dbh, species = species),
+                  ensym_cols(...))
+        raile_stump_biomass <- data |>
+            dplyr::rowwise() |>
+            dplyr::mutate(raile_stump_biomass = get_raile_stump_biomass(!!!args,
+                                                species_reference = species_reference)) |>
+            dplyr::ungroup() |>
+            dplyr::pull(raile_stump_biomass)
+        return(raile_stump_biomass)
+    } else if (class(data) != 'crm_data') {
+        data <- do.call(prep_data,
+                        c(list(dbh, 0, species,
+                               species_reference = species_reference),
+                          list(...)))
+    }
+    if (!is.null(data$raile_stump_biomass)) {
+        raile_stump_biomass <- data$raile_stump_biomass
+    } else {
+        data$wood_spec_grav <- get_wood_spec_grav(data)
+        data$bark_spec_grav <- get_bark_spec_grav(data)
+        stump_coefs <- data$species_reference |>
+            dplyr::select(RAILE_STUMP_DOB_B1, RAILE_STUMP_DIB_B1, RAILE_STUMP_DIB_B2)
+
+        inside_A <- stump_coefs$RAILE_STUMP_DIB_B1
+        inside_B <- stump_coefs$RAILE_STUMP_DIB_B2
+        outside_B <-  stump_coefs$RAILE_STUMP_DOB_B1
+
+        stump_vol_i <- get_stump_volume(inside_A, inside_B, data$dbh)
+        stump_vol_o <- get_stump_volume(1, outside_B, data$dbh)
+
+        stump_bio_i <- stump_vol_i * data$wood_spec_grav * 62.4
+        stump_bio_o <- (stump_vol_o - stump_vol_i) * data$bark_spec_grav * 62.4
+        raile_stump_biomass <- (stump_bio_i + stump_bio_o)
+    }
+    return(raile_stump_biomass)
+}
+
+
+
 #' Compute sound volume for individual trees
 #'
 #' Computes sound volume (VOLCFSND) for individual tree's using
@@ -632,8 +838,6 @@ prep_data <- function(dbh, boleht, species,
 #' data.frame and the computations will be carried out rowwise. In this case
 #' a vector of values will be returned in place of a single float.
 #'
-#' @param data An object of type 'crm_data' (use `prep_data` to build) or a
-#' data.frame.
 #' @inheritParams get_ag_biomass
 #'
 #' @return Float value indicating cubic foot sound volume of the tree
@@ -664,9 +868,11 @@ get_snd_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
             dplyr::pull(snd_vol)
         return(snd_vol)
     } else if (class(data) != 'crm_data') {
-        data <- prep_data(dbh, boleht, species, cull = cull,
-                          volume_coefficients = volume_coefficients,
-                          volume_config = volume_config, list(...))
+        data <- do.call(prep_data,
+                        c(list(dbh, boleht, species, cull = cull,
+                               volume_coefficients = volume_coefficients,
+                               volume_config = volume_config),
+                          list(...)))
     }
     if (!is.null(data$snd_vol)) {
         snd_vol <- data$snd_vol
@@ -698,7 +904,7 @@ get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
                         ...) {
     if (inherits(data, 'data.frame')) {
         if (any(c(missing(dbh),
-                  missing(ht),
+                  missing(boleht),
                   missing(species)))) {
             stop(paste0("When 'data' argument is a data.frame, 'dbh', ",
                         "'boleht', 'species' must all be ",
@@ -710,15 +916,16 @@ get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
             dplyr::rowwise() |>
             dplyr::mutate(grs_vol = get_grs_vol(!!!args,
                                                 volume_config = volume_config,
-                                                volume_coefficients = volume_coefficients,
-                                                species_reference = species_reference)) |>
+                                                volume_coefficients = volume_coefficients)) |>
             dplyr::ungroup() |>
             dplyr::pull(grs_vol)
         return(grs_vol)
     } else if (class(data) != 'crm_data') {
-        data <- prep_data(dbh, boleht, species,
-                          volume_coefficients = volume_coefficients,
-                          volume_config = volume_config, list(...))
+        data <- do.call(prep_data,
+                        c(list(dbh, boleht, species,
+                               volume_coefficients = volume_coefficients,
+                               volume_config = volume_config),
+                          list(...)))
     }
     if (!is.null(data$grs_vol)) {
         grs_vol <- data$grs_vol
@@ -1068,7 +1275,7 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
                                             get_bole_biomass(data),
                                             data$bole_biomass)
         data$crm_adj_factor <- get_crm_adjustment(data)
-        data$raile_stump_bio <- get_raile_stump_biomass(data)
+        data$raile_stump_biomass <- get_raile_stump_biomass(data)
         data$stump_biomass <- ifelse(is.null(data$stump_biomass),
                                      get_stump_biomass(data),
                                      data$stump_biomass)

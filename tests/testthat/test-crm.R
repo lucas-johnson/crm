@@ -112,14 +112,54 @@ test_that("get_jenkins_total_biomass works", {
 
     dd$jenkins_total_biomass <- -77
     expect_equal(get_jenkins_total_biomass(dd), -77)
+
+    expect_equal(get_jenkins_total_biomass(dbh = dd$dbh, species = dd$species),
+                 774.24059)
+
+    # df support
+    df <- get_dummy_df()
+    expect_equal(get_jenkins_total_biomass(df, DIA, SPCD),
+                 c(774.240585, 2077.386361))
+    df <- get_dummy_df(cull = c(50, 30))
+    expect_equal(get_jenkins_total_biomass(df, DIA, SPCD, cull = CULL),
+                 c(774.240585, 2077.386361))
+    df <- get_dummy_df(snd_vol = c(0, 24.435094))
+    expect_equal(get_jenkins_total_biomass(df, DIA, SPCD, snd_vol = snd_vol),
+                 c(774.240585, 2077.386361))
+    df <- get_dummy_df(jenkins_total_biomass = c(0, 10))
+    expect_equal(get_jenkins_total_biomass(df, DIA, SPCD,
+                                           jenkins_total_biomass = jenkins_total_biomass),
+                 c(0, 10))
 })
 
 test_that("get_jenkins_foliage_biomass works", {
     dd <- get_dummy_data()
     expect_equal(get_jenkins_foliage_biomass(dd), 16.4799042)
 
-    dd$jenkins_foliage_biomass <- -77
-    expect_equal(get_jenkins_foliage_biomass(dd), -77)
+    # df support
+    df <- get_dummy_df()
+    expect_equal(get_jenkins_foliage_biomass(df, DIA, SPCD),
+                 c(16.4799042, 40.9330796))
+
+    # snd vol and cull not used in the computation
+    df <- get_dummy_df(cull = c(50, 30))
+    expect_equal(get_jenkins_foliage_biomass(df, DIA, SPCD, cull = CULL),
+                 c(16.4799042, 40.9330796))
+    df <- get_dummy_df(snd_vol = c(0, 24.435094))
+    expect_equal(get_jenkins_foliage_biomass(df, DIA, SPCD, snd_vol = snd_vol),
+                 c(16.4799042, 40.9330796))
+
+    # Fraction of total boimass
+    df <- get_dummy_df(jenkins_total_biomass = c(0, 2077.386361))
+    expect_equal(get_jenkins_foliage_biomass(df, DIA, SPCD,
+                                             jenkins_total_biomass = jenkins_total_biomass),
+                 c(0, 40.9330796))
+
+    # foliage already exists
+    df <- get_dummy_df(jenkins_foliage_biomass = c(100, -99))
+    expect_equal(get_jenkins_foliage_biomass(df, DIA, SPCD,
+                                             jenkins_foliage_biomass = jenkins_foliage_biomass),
+                 c(100, -99))
 })
 
 test_that("get_jenkins_bole_wood_biomass works", {
@@ -128,6 +168,31 @@ test_that("get_jenkins_bole_wood_biomass works", {
 
     dd$jenkins_bole_wood_biomass <- -77
     expect_equal(get_jenkins_bole_wood_biomass(dd), -77)
+
+    # df support
+    df <- get_dummy_df()
+    expect_equal(get_jenkins_bole_wood_biomass(df, DIA, SPCD),
+                 c(460.282, 1326.108))
+
+    # snd vol and cull not used in the computation
+    df <- get_dummy_df(cull = c(50, 30))
+    expect_equal(get_jenkins_bole_wood_biomass(df, DIA, SPCD, cull = CULL),
+                 c(460.282, 1326.108))
+    df <- get_dummy_df(snd_vol = c(0, 24.435094))
+    expect_equal(get_jenkins_bole_wood_biomass(df, DIA, SPCD, snd_vol = snd_vol),
+                 c(460.282, 1326.108))
+
+    # Fraction of total boimass
+    df <- get_dummy_df(jenkins_total_biomass = c(0, 1000))
+    expect_equal(get_jenkins_bole_wood_biomass(df, DIA, SPCD,
+                                             jenkins_total_biomass = jenkins_total_biomass),
+                 c(0, 638.35405))
+
+    # bole wood already exists
+    df <- get_dummy_df(jenkins_bole_wood_biomass = c(100, -99))
+    expect_equal(get_jenkins_bole_wood_biomass(df, DIA, SPCD,
+                                             jenkins_bole_wood_biomass = jenkins_bole_wood_biomass),
+                 c(100, -99))
 })
 
 test_that("get_jenkins_bole_bark_biomass works", {
@@ -136,6 +201,31 @@ test_that("get_jenkins_bole_bark_biomass works", {
 
     dd$jenkins_bole_bark_biomass <- -77
     expect_equal(get_jenkins_bole_bark_biomass(dd), -77)
+
+    # df support
+    df <- get_dummy_df()
+    expect_equal(get_jenkins_bole_bark_biomass(df, DIA, SPCD),
+                 c(96.81687, 265.56462))
+
+    # snd vol and cull not used in the computation
+    df <- get_dummy_df(cull = c(50, 30))
+    expect_equal(get_jenkins_bole_bark_biomass(df, DIA, SPCD, cull = CULL),
+                 c(96.81687, 265.56462))
+    df <- get_dummy_df(snd_vol = c(0, 24.435094))
+    expect_equal(get_jenkins_bole_bark_biomass(df, DIA, SPCD, snd_vol = snd_vol),
+                 c(96.81687, 265.56462))
+
+    # Fraction of total boimass
+    df <- get_dummy_df(jenkins_total_biomass = c(0, 1000))
+    expect_equal(get_jenkins_bole_bark_biomass(df, DIA, SPCD,
+                                               jenkins_total_biomass = jenkins_total_biomass),
+                 c(0, 127.835933))
+
+    # bole wood already exists
+    df <- get_dummy_df(jenkins_bole_bark_biomass = c(100, -99))
+    expect_equal(get_jenkins_bole_bark_biomass(df, DIA, SPCD,
+                                               jenkins_bole_bark_biomass = jenkins_bole_bark_biomass),
+                 c(100, -99))
 })
 
 test_that("get_jenkins_bole_biomass works", {
@@ -152,6 +242,39 @@ test_that("get_jenkins_bole_biomass works", {
 
     dd$jenkins_bole_biomass <- -88
     expect_equal(get_jenkins_bole_biomass(dd), -88)
+
+    # df support
+    df <- get_dummy_df()
+    expect_equal(get_jenkins_bole_biomass(df, DIA, SPCD),
+                 c(557.09887, 1591.67263))
+
+    # snd vol and cull not used in the computation
+    df <- get_dummy_df(cull = c(50, 30))
+    expect_equal(get_jenkins_bole_biomass(df, DIA, SPCD, cull = CULL),
+                 c(557.09887, 1591.67263))
+    df <- get_dummy_df(snd_vol = c(0, 24.435094))
+    expect_equal(get_jenkins_bole_biomass(df, DIA, SPCD, snd_vol = snd_vol),
+                 c(557.09887, 1591.67263))
+
+    # Fraction of total boimass
+    df <- get_dummy_df(jenkins_total_biomass = c(0, 1000))
+    expect_equal(get_jenkins_bole_biomass(df, DIA, SPCD,
+                                               jenkins_total_biomass = jenkins_total_biomass),
+                 c(0, 766.18999))
+
+    # bole already exists
+    df <- get_dummy_df(jenkins_bole_biomass = c(100, -99))
+    expect_equal(get_jenkins_bole_biomass(df, DIA, SPCD,
+                                          jenkins_bole_biomass = jenkins_bole_biomass),
+                 c(100, -99))
+
+    # bole bark and bole wood already exist
+    df$jenkins_bole_wood_biomass = c(1, 10)
+    df$jenkins_bole_bark_biomass = c(-1, -5)
+    expect_equal(get_jenkins_bole_biomass(df, DIA, SPCD,
+                                          jenkins_bole_wood_biomass = jenkins_bole_wood_biomass,
+                                          jenkins_bole_bark_biomass = jenkins_bole_bark_biomass),
+                 c(0, 5))
 })
 
 test_that("get_stump_volume works", {
@@ -166,6 +289,31 @@ test_that("get_raile_stump_biomass works", {
     dd$bark_spec_grav <- 0
     dd$wood_spec_grav <- 0
     expect_equal(get_raile_stump_biomass(dd), 0)
+
+    # df support
+    df <- get_dummy_df()
+    expect_equal(get_raile_stump_biomass(df, DIA, SPCD),
+                 c(35.2782367, 84.7246607))
+
+    # snd vol and cull not used in the computation
+    df <- get_dummy_df(cull = c(50, 30))
+    expect_equal(get_raile_stump_biomass(df, DIA, SPCD, cull = CULL),
+                 c(35.2782367, 84.7246607))
+    df <- get_dummy_df(snd_vol = c(0, 24.435094))
+    expect_equal(get_raile_stump_biomass(df, DIA, SPCD, snd_vol = snd_vol),
+                 c(35.2782367, 84.7246607))
+
+    # Fraction of total boimass
+    df <- get_dummy_df(jenkins_total_biomass = c(0, 1000))
+    expect_equal(get_raile_stump_biomass(df, DIA, SPCD,
+                                          jenkins_total_biomass = jenkins_total_biomass),
+                 c(35.2782367, 84.7246607))
+
+    # bole already exists
+    df <- get_dummy_df(raile_stump_biomass = c(100, -99))
+    expect_equal(get_raile_stump_biomass(df, DIA, SPCD,
+                                          raile_stump_biomass = raile_stump_biomass),
+                 c(100, -99))
 })
 
 test_that('get_bole_biomass works', {

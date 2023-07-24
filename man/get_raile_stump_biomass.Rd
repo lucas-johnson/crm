@@ -4,15 +4,37 @@
 \alias{get_raile_stump_biomass}
 \title{Compute Raile 1982 stump biomass}
 \usage{
-get_raile_stump_biomass(data)
+get_raile_stump_biomass(
+  data = NULL,
+  dbh = NULL,
+  species = NULL,
+  species_reference = NULL,
+  ...
+)
 }
 \arguments{
 \item{data}{an object of type \code{crm_data} (see prep_data), or a data.frame}
+
+\item{dbh}{Float - diameter at breast height}
+
+\item{species}{Integer - FIA species code}
+
+\item{species_reference}{file path to FIA REF_SPECIES.csv}
+
+\item{...}{optional arguments to be used in place of computed / looked up
+arguments. See prep_data for full list of arguments.}
 }
 \value{
-Float indicating oven-dry stump biomass in lbs.
+Float value indicating cubic foot sound volume of the tree
 }
 \description{
 Computes stump biomass (0 to 1ft tall) for individual tree's using the
 Raile 1982 models.
+}
+\details{
+If \code{data} is null then dbh, boleht, and species are required and an object of
+type 'crm_data' will be built for you. If \code{data} inherits from data.frame
+then additional arguments are expected to be names of columns in the
+data.frame and the computations will be carried out rowwise. In this case
+a vector of values will be returned in place of a single float.
 }

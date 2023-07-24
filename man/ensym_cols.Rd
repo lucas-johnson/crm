@@ -5,11 +5,15 @@
 \title{Handle data masked arguments (column names)}
 \usage{
 ensym_cols(
+  cull = NULL,
+  dc = NULL,
   grs_vol = NULL,
   snd_vol = NULL,
   jenkins_total_biomass = NULL,
   crm_adj_factor = NULL,
   jenkins_bole_biomass = NULL,
+  jenkins_bole_wood_biomass = NULL,
+  jenkins_bole_bark_biomass = NULL,
   jenkins_foliage_biomass = NULL,
   raile_stump_biomass = NULL,
   bole_biomass = NULL,
@@ -26,6 +30,11 @@ ensym_cols(
 )
 }
 \arguments{
+\item{cull}{Integer - percent indicating percent of tree that is rotten or
+missing}
+
+\item{dc}{Integer (1-5) - FIA decay class code  (DECAYCD)}
+
 \item{grs_vol}{Float indicating gross volume of the tree (FIA VOLCFGRS)}
 
 \item{snd_vol}{Float indicating sound volume of the tree (FIA VOLCFNET)}
@@ -37,6 +46,12 @@ of total tree biomass.}
 ratio to adjust jenkins}
 
 \item{jenkins_bole_biomass}{Float indicating jenkins et al. 2003 estimate of
+bole biomass}
+
+\item{jenkins_bole_wood_biomass}{Float indicating jenkins et al. 2003 estimate of
+bole biomass}
+
+\item{jenkins_bole_bark_biomass}{Float indicating jenkins et al. 2003 estimate of
 bole biomass}
 
 \item{jenkins_foliage_biomass}{Float indicating jenkins et al. 2003 estimate

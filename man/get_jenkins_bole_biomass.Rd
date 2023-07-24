@@ -4,14 +4,36 @@
 \alias{get_jenkins_bole_biomass}
 \title{Compute Jenkins et al. 2003 bole biomass (wood + bark)}
 \usage{
-get_jenkins_bole_biomass(data)
+get_jenkins_bole_biomass(
+  data = NULL,
+  dbh = NULL,
+  species = NULL,
+  species_reference = NULL,
+  ...
+)
 }
 \arguments{
 \item{data}{an object of type \code{crm_data} (see prep_data), or a data.frame}
+
+\item{dbh}{Float - diameter at breast height}
+
+\item{species}{Integer - FIA species code}
+
+\item{species_reference}{file path to FIA REF_SPECIES.csv}
+
+\item{...}{optional arguments to be used in place of computed / looked up
+arguments. See prep_data for full list of arguments.}
 }
 \value{
-A float indicating the bole biomass in lbs.
+Float value indicating cubic foot sound volume of the tree
 }
 \description{
-Compute Jenkins et al. 2003 bole biomass (wood + bark)
+...
+}
+\details{
+If \code{data} is null then dbh, boleht, and species are required and an object of
+type 'crm_data' will be built for you. If \code{data} inherits from data.frame
+then additional arguments are expected to be names of columns in the
+data.frame and the computations will be carried out rowwise. In this case
+a vector of values will be returned in place of a single float.
 }

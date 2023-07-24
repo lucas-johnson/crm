@@ -16,8 +16,7 @@ get_snd_vol(
 )
 }
 \arguments{
-\item{data}{An object of type 'crm_data' (use \code{prep_data} to build) or a
-data.frame.}
+\item{data}{an object of type \code{crm_data} (see prep_data), or a data.frame}
 
 \item{dbh}{Float - diameter at breast height}
 
