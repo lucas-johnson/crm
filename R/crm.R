@@ -1253,8 +1253,8 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
             dplyr::filter(SPCD == data$species) |>
             dplyr::pull(JENKINS_SAPLING_ADJUSTMENT)
         jenkins_total <- get_jenkins_total_biomass(data)
-        jenkins_foliage <- get_foliage_jenkins_biomass(data)
-        sapling_bio <- jenkins_total - foliage_jenkins
+        jenkins_foliage <- get_jenkins_foliage_biomass(data)
+        sapling_bio <- jenkins_total - jenkins_foliage
 
         ag_biomass <- sapling_bio * sapling_adj_fac
     } else if (is.na(data$boleht)) {
