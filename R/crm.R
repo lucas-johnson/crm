@@ -49,6 +49,9 @@ ensym_cols <- function(cull = NULL,
     if (!missing(snd_vol)) {
         args <- append(args, rlang::ensyms(snd_vol = snd_vol))
     }
+    if (!missing(grs_vol)) {
+        args <- append(args, rlang::ensyms(grs_vol = grs_vol))
+    }
     if (!missing(jenkins_total_biomass)) {
         args <- append(args, rlang::ensyms(jenkins_total_biomass = jenkins_total_biomass))
     }
@@ -311,9 +314,8 @@ get_bole_wood_biomass <- function(data) {
         data$sl_bole <- get_structural_loss(data, 'bole')
         data$drf <- get_density_reduction_factor(data)
     }
-
-    data$snd_vol <- get_snd_vol(data)
-    bw_biomass <- data$snd_vol * data$wood_spec_grav * 62.4
+    data$vol_to_use <- get_vol_to_use(data)
+    bw_biomass <- data$vol_to_use * data$wood_spec_grav * 62.4
     if (data$is_dead) {
         bw_biomass <- bw_biomass * data$sl_bole * data$drf
     }
@@ -340,9 +342,8 @@ get_bole_bark_biomass <- function(data) {
         data$sl_bark <- get_structural_loss(data, 'bark')
         data$drf <- get_density_reduction_factor(data)
     }
-
-    data$snd_vol <- get_snd_vol(data)
-    bb_biomass <- data$snd_vol * (data$bark_percent / 100.0) * data$bark_spec_grav * 62.4
+    data$vol_to_use <- get_vol_to_use(data)
+    bb_biomass <- data$vol_to_use * (data$bark_percent / 100.0) * data$bark_spec_grav * 62.4
     if (data$is_dead) {
         bb_biomass <- bb_biomass * data$sl_bark * data$drf
     }
@@ -411,6 +412,7 @@ prep_data <- function(dbh, boleht, species,
                       volume_config = NULL,
                       volume_coefficients = NULL,
                       species_reference = NULL,
+                      ref_avg_pct_snd = NULL,
                       bark_percent = NULL,
                       drf = NULL,
                       sl_top = NULL,
@@ -432,7 +434,6 @@ prep_data <- function(dbh, boleht, species,
     if (is.null(dbh) | is.null(boleht) | is.null(species)) {
         stop("Must provide dbh, boleht, and species arguments.")
     }
-
     if (is.null(species_reference)) {
         species_reference <- crm::species_reference_default |>
             dplyr::filter(SPCD == species)
@@ -446,10 +447,22 @@ prep_data <- function(dbh, boleht, species,
     if (is.null(volume_coefficients)) {
         volume_coefficients <- crm::volume_coefficients_northeast
     }
+    if (is.null(ref_avg_pct_snd)) {
+        ref_avg_pct_snd <- crm::ref_avg_pct_snd_default
+    }
     is_dead <- (!is.null(dc) && !is.na(dc))
     if (is_dead && !dc %in% 1:5) {
         stop("argument dc must be between 1 and 5.")
     }
+
+    max_spgrp_dia <- ref_avg_pct_snd |>
+        dplyr::filter(DIAMETER_ROUND != 999) |>
+        dplyr::group_by(SPGRPCD) |>
+        dplyr::summarise(max_spgrp_dia = max(DIAMETER_ROUND)) |>
+        dplyr::ungroup()
+    species_reference <- species_reference |>
+        dplyr::left_join(max_spgrp_dia, by = c('JENKINS_SPGRPCD' = 'SPGRPCD'))
+
     structure(
         list(
             dbh = dbh,
@@ -481,7 +494,8 @@ prep_data <- function(dbh, boleht, species,
             crm_adj_factor = crm_adj_factor,
             volume_config = volume_config,
             species_reference = species_reference,
-            volume_coefficients = volume_coefficients
+            volume_coefficients = volume_coefficients,
+            ref_avg_pct_snd = ref_avg_pct_snd
         ),
         class = 'crm_data'
     )
@@ -943,6 +957,58 @@ get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
     return(grs_vol)
 }
 
+get_pct_snd <- function(data) {
+
+    if (class(data) != 'crm_data') {
+        stop(get_crm_data_type_error())
+    } else {
+        pct_snd <- data$species_reference |>
+            dplyr::mutate(DIAMETER_ROUND = floor(data$dbh),
+                          DIAMETER_ROUND = dplyr::case_when(DIAMETER_ROUND > max_spgrp_dia ~ 999,
+                                                            data$dbh < 5 ~ 5,
+                                                            TRUE ~ DIAMETER_ROUND)) |>
+            dplyr::left_join(data$ref_avg_pct_snd,
+                             by = c('JENKINS_SPGRPCD' = 'SPGRPCD', 'DIAMETER_ROUND')) |>
+            dplyr::pull(PCT_SND)
+    }
+    return(pct_snd)
+}
+
+get_crm_bole_over_jenkins_total <- function(data) {
+
+    if (class(data) != 'crm_data') {
+        stop(get_crm_data_type_error())
+    } else {
+        crm_bole_over_jenkins_total <- data$species_reference |>
+            dplyr::mutate(DIAMETER_ROUND = floor(data$dbh),
+                          DIAMETER_ROUND = dplyr::case_when(DIAMETER_ROUND > max_spgrp_dia ~ 999,
+                                                            data$dbh < 5 ~ 5,
+                                                            TRUE ~ DIAMETER_ROUND)) |>
+            dplyr::left_join(data$ref_avg_pct_snd,
+                             by = c('JENKINS_SPGRPCD' = 'SPGRPCD', 'DIAMETER_ROUND')) |>
+            dplyr::pull(CRM_BOLE_OVER_JENKINS_TOT)
+    }
+    return(crm_bole_over_jenkins_total)
+}
+
+
+get_vol_to_use <- function(data) {
+
+    if (class(data) != 'crm_data') {
+        stop(get_crm_data_type_error())
+    }
+    if (!is.null(data$vol_to_use)) {
+        vol_to_use <- data$vol_to_use
+    } else {
+        data$grs_vol <- get_grs_vol(data)
+        data$snd_vol <- get_snd_vol(data)
+        vol_to_use <- ifelse(data$snd_vol == 0,
+                             data$grs_vol * get_pct_snd(data),
+                             data$snd_vol)
+    }
+    return(vol_to_use)
+}
+
 #' Compute oven-dry bole biomass for individual trees
 #'
 #' Computes stump biomass for individual tree's following the
@@ -964,7 +1030,8 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
                              cull = NULL, dc = NULL,
                              species_reference = NULL,
                              volume_coefficients = NULL,
-                             volume_config = NULL, ...) {
+                             volume_config = NULL,
+                             ref_avg_pct_snd = NULL, ...) {
     if (inherits(data, 'data.frame')) {
         if (any(c(missing(dbh),
                   missing(boleht),
@@ -978,12 +1045,14 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
         args <- c(rlang::ensyms(dbh = dbh, boleht = boleht, species = species,
                                 dc = dc, cull = cull),
                   ensym_cols(...))
+
         bole_biomass <- data |>
             dplyr::rowwise() |>
             dplyr::mutate(bole_biomass = get_bole_biomass(!!!args,
-                                                            volume_config = volume_config,
-                                                            volume_coefficients = volume_coefficients,
-                                                            species_reference = species_reference)) |>
+                                                          volume_config = volume_config,
+                                                          volume_coefficients = volume_coefficients,
+                                                          species_reference = species_reference,
+                                                          ref_avg_pct_snd = ref_avg_pct_snd)) |>
             dplyr::ungroup() |>
             dplyr::pull(bole_biomass)
         return(bole_biomass)
@@ -1007,12 +1076,20 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
             data$sl_bole <- get_structural_loss(data, 'bole')
             data$sl_bark <- get_structural_loss(data, 'bark')
         }
+        data$vol_to_use <- get_vol_to_use(data)
+        if (is.na(data$vol_to_use)) {
+            # this is from Brian F. Walters Script, a very very rare case in NYS
+            crm_bole_over_jenkins_total <- get_crm_bole_over_jenkins_total(data)
+            bole_wood_biomass <- get_jenkins_bole_wood_biomass(data) *
+                data$sl_bole * data$drf * crm_bole_over_jenkins_total
+            bole_bark_biomass <- get_jenkins_bole_bark_biomass(data) *
+                data$sl_bark * data$drf * crm_bole_over_jenkins_total
 
-        data$grs_vol <- get_grs_vol(data)
-        data$snd_vol <- get_snd_vol(data)
+        } else {
+            bole_wood_biomass <- get_bole_wood_biomass(data)
+            bole_bark_biomass <- get_bole_bark_biomass(data)
+        }
 
-        bole_wood_biomass <- get_bole_wood_biomass(data)
-        bole_bark_biomass <- get_bole_bark_biomass(data)
 
         total_bole_biomass <- bole_wood_biomass + bole_bark_biomass
     }
@@ -1040,7 +1117,8 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
                               species = NULL, cull = NULL, dc = NULL,
                               species_reference = NULL,
                               volume_config = NULL,
-                              volume_coefficients = NULL, ...) {
+                              volume_coefficients = NULL,
+                              ref_avg_pct_snd = NULL, ...) {
     if (inherits(data, 'data.frame')) {
         if (any(c(missing(dbh),
                   missing(boleht),
@@ -1059,7 +1137,8 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
             dplyr::mutate(stump_biomass = get_stump_biomass(!!!args,
                                                       volume_config = volume_config,
                                                       volume_coefficients = volume_coefficients,
-                                                      species_reference = species_reference)) |>
+                                                      species_reference = species_reference,
+                                                      ref_avg_pct_snd = ref_avg_pct_snd)) |>
             dplyr::ungroup() |>
             dplyr::pull(stump_biomass)
         return(stump_biomass)
@@ -1080,16 +1159,22 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
         data$bark_spec_grav <- get_bark_spec_grav(data)
         if (data$is_dead) {
 
-            # bole biomass needs to be recomputed without a DRF for stump biomass
-            # not sure why... it goes against FIA prescription.
-            # but it's the only way to match FIA data.
-            data$bole_biomass <- NULL
-            data$crm_adj_factor <- NULL
-            data$sl_bole <- 1
-            data$sl_bark <- 1
-            data$drf <- 1
 
+            #' This won't match FIA DB values because they incorrectly
+            #' computed stump biomass without a density reduction factor.
+            #' This however is correct in line with the Domke paper (and)
+            #' script from Brian F. Walters USFS
+            # data$drf <- get_density_reduction_factor(data)
+            # data$sl_bole <- get_structural_loss(data, 'bole')
+            # data$sl_bark <- get_structural_loss(data, 'bark')
             data$sl_stump <- get_structural_loss(data, 'stump')
+
+            #' To match FIA DB:
+            # data$bole_biomass <- NULL
+            # data$crm_adj_factor <- NULL
+            # data$sl_bole <- 1
+            # data$sl_bark <- 1
+            # data$drf <- 1
 
         }
 
@@ -1127,7 +1212,8 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
                             species = NULL, cull = NULL, dc = NULL,
                             volume_config = NULL,
                             volume_coefficients = NULL,
-                            species_reference = NULL, ...) {
+                            species_reference = NULL,
+                            ref_avg_pct_snd = NULL, ...) {
     if (inherits(data, 'data.frame')) {
         if (any(c(missing(dbh),
                   missing(boleht),
@@ -1146,7 +1232,8 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
             dplyr::mutate(top_biomass = get_top_biomass(!!!args,
                                                         volume_config = volume_config,
                                                         volume_coefficients = volume_coefficients,
-                                                        species_reference = species_reference)) |>
+                                                        species_reference = species_reference,
+                                                        ref_avg_pct_snd = ref_avg_pct_snd)) |>
             dplyr::ungroup() |>
             dplyr::pull(top_biomass)
         return(top_biomass)
@@ -1166,9 +1253,6 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
         data$wood_spec_grav <- get_wood_spec_grav(data)
         data$bark_spec_grav <- get_bark_spec_grav(data)
         if (data$is_dead) {
-            data$drf <- get_density_reduction_factor(data)
-            data$sl_bole <- get_structural_loss(data, 'bole')
-            data$sl_bark <- get_structural_loss(data, 'bark')
             data$sl_top <- get_structural_loss(data, 'top')
         }
 
@@ -1213,7 +1297,8 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
 get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NULL,
                            cull = NULL, dc = NULL,
                            volume_config = NULL, volume_coefficients = NULL,
-                           species_reference = NULL, ...) {
+                           species_reference = NULL, ref_avg_pct_snd = NULL,
+                           ...)  {
     if (inherits(data, 'data.frame')) {
         if (any(c(missing(dbh),
                   missing(boleht),
@@ -1232,7 +1317,8 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
             dplyr::mutate(ag_biomass = get_ag_biomass(!!!args,
                                                       volume_config = volume_config,
                                                       volume_coefficients = volume_coefficients,
-                                                      species_reference = species_reference)) |>
+                                                      species_reference = species_reference,
+                                                      ref_avg_pct_snd = ref_acg_pct_snd)) |>
             dplyr::ungroup() |>
             dplyr::pull(ag_biomass)
         return(ag_biomass)
@@ -1262,11 +1348,14 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
     } else {
         data$wood_spec_grav <- get_wood_spec_grav(data)
         data$bark_spec_grav <- get_bark_spec_grav(data)
+        data$vol_to_use <- get_vol_to_use(data)
+
         if (data$is_dead) {
             data$drf <- get_density_reduction_factor(data)
             data$sl_top <- get_structural_loss(data, 'top')
             data$sl_bole <- get_structural_loss(data, 'bole')
             data$sl_bark <- get_structural_loss(data, 'bark')
+            data$sl_stump <- get_structural_loss(data, 'stump')
         }
 
         data$jenkins_total_biomass <- get_jenkins_total_biomass(data)
@@ -1287,4 +1376,3 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
 
     return(ag_biomass)
 }
-
