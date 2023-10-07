@@ -367,6 +367,8 @@ get_bole_bark_biomass <- function(data) {
 #' @param volume_config file path to FIA's NE_config_volcfgrs.csv
 #' @param volume_coefficients file path to FIA's NE_coefs_volcfgrs.csv
 #' @param species_reference file path to FIA REF_SPECIES.csv
+#' @param ref_avg_pct_snd file path to ref_avg_pct_snd_crm_rt2_table.csv (from
+#'  Brian F. Walters and Grant Domke, not public)
 #' @param bark_percent float indicating the percent of the tree bole volume
 #' that is bark
 #' @param drf  (density reduction factor) Float ratio to convert live biomass to
@@ -438,17 +440,32 @@ prep_data <- function(dbh, boleht, species,
         species_reference <- crm::species_reference_default |>
             dplyr::filter(SPCD == species)
     } else {
+        if (class(species_reference) == 'character') {
+            species_reference <- read.csv(species_reference)
+        }
         species_reference <- species_reference |>
             dplyr::filter(SPCD == species)
     }
     if (is.null(volume_config)) {
         volume_config <- crm::volume_config_northeast
+    } else {
+        if (class(volume_config) == 'character') {
+            volume_config <- read.csv(volume_config)
+        }
     }
     if (is.null(volume_coefficients)) {
         volume_coefficients <- crm::volume_coefficients_northeast
+    } else {
+        if (class(volume_coefficients) == 'character') {
+            volume_coefficients <- read.csv(volume_coefficients)
+        }
     }
     if (is.null(ref_avg_pct_snd)) {
         ref_avg_pct_snd <- crm::ref_avg_pct_snd_default
+    } else {
+        if (class(ref_avg_pct_snd) == 'character') {
+            ref_avg_pct_snd <- read.csv(ref_avg_pct_snd)
+        }
     }
     is_dead <- (!is.null(dc) && !is.na(dc))
     if (is_dead && !dc %in% 1:5) {
@@ -957,6 +974,15 @@ get_grs_vol <- function(data = NULL, dbh = NULL, species = NULL, boleht = NULL,
     return(grs_vol)
 }
 
+#' Get a percent sound value
+#'
+#' This is only used if snd_vol = 0, and is used to mutliply by grs_vol. It
+#' is looked up in the (mysterious) ref_avg_pct_snd received from Brian F.
+#' Walters and Grant Domke
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return A float percent sound (0-1) value
 get_pct_snd <- function(data) {
 
     if (class(data) != 'crm_data') {
@@ -992,6 +1018,15 @@ get_crm_bole_over_jenkins_total <- function(data) {
 }
 
 
+#' Get a volume value to use for biomass calc.
+#'
+#' If sound volume (VOLCFSND, snd_vol) is 0, use VOLCFGRS (grs_vol) multiplied
+#' by a percent sound (pct_sound) value in the (mysterious) ref_avg_pct_snd
+#' table received from Brian F Walters and Grant Domke
+#'
+#' @inheritParams get_ag_biomass
+#'
+#' @return Float volume value
 get_vol_to_use <- function(data) {
 
     if (class(data) != 'crm_data') {
@@ -1112,7 +1147,6 @@ get_bole_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = N
 #'
 #' @return Float value indicating oven-dry stump biomass in lbs.
 #' @export
-#'
 get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
                               species = NULL, cull = NULL, dc = NULL,
                               species_reference = NULL,
@@ -1158,8 +1192,6 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
         data$wood_spec_grav <- get_wood_spec_grav(data)
         data$bark_spec_grav <- get_bark_spec_grav(data)
         if (data$is_dead) {
-
-
             #' This won't match FIA DB values because they incorrectly
             #' computed stump biomass without a density reduction factor.
             #' This however is correct in line with the Domke paper (and)
@@ -1175,7 +1207,6 @@ get_stump_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
             # data$sl_bole <- 1
             # data$sl_bark <- 1
             # data$drf <- 1
-
         }
 
         data$jenkins_total_biomass <- get_jenkins_total_biomass(data)
@@ -1293,7 +1324,6 @@ get_top_biomass <- function(data = NULL, dbh = NULL, boleht = NULL,
 #' @return Float value indicating oven-dry total tree (sans foliage) aboveground
 #' biomass in lbs.
 #' @export
-#'
 get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NULL,
                            cull = NULL, dc = NULL,
                            volume_config = NULL, volume_coefficients = NULL,
@@ -1318,7 +1348,7 @@ get_ag_biomass <- function(data = NULL, dbh = NULL, boleht = NULL, species = NUL
                                                       volume_config = volume_config,
                                                       volume_coefficients = volume_coefficients,
                                                       species_reference = species_reference,
-                                                      ref_avg_pct_snd = ref_acg_pct_snd)) |>
+                                                      ref_avg_pct_snd = ref_avg_pct_snd)) |>
             dplyr::ungroup() |>
             dplyr::pull(ag_biomass)
         return(ag_biomass)

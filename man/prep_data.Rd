@@ -16,6 +16,7 @@ prep_data(
   volume_config = NULL,
   volume_coefficients = NULL,
   species_reference = NULL,
+  ref_avg_pct_snd = NULL,
   bark_percent = NULL,
   drf = NULL,
   sl_top = NULL,
@@ -59,6 +60,9 @@ converting volume to biomass}
 \item{volume_coefficients}{file path to FIA's NE_coefs_volcfgrs.csv}
 
 \item{species_reference}{file path to FIA REF_SPECIES.csv}
+
+\item{ref_avg_pct_snd}{file path to ref_avg_pct_snd_crm_rt2_table.csv (from
+Brian F. Walters and Grant Domke, not public)}
 
 \item{bark_percent}{float indicating the percent of the tree bole volume
 that is bark}

@@ -14,6 +14,7 @@ get_top_biomass(
   volume_config = NULL,
   volume_coefficients = NULL,
   species_reference = NULL,
+  ref_avg_pct_snd = NULL,
   ...
 )
 }
@@ -36,6 +37,9 @@ missing}
 \item{volume_coefficients}{file path to FIA's NE_coefs_volcfgrs.csv}
 
 \item{species_reference}{file path to FIA REF_SPECIES.csv}
+
+\item{ref_avg_pct_snd}{file path to ref_avg_pct_snd_crm_rt2_table.csv (from
+Brian F. Walters and Grant Domke, not public)}
 
 \item{...}{optional arguments to be used in place of computed / looked up
 arguments. See prep_data for full list of arguments.}
